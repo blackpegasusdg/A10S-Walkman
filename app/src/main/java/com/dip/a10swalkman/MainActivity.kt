@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import androidx.core.view.WindowCompat
 
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -166,6 +167,7 @@ class MainActivity : ComponentActivity() {
     ) {
 
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, true)
 
         startMusicService()
 
