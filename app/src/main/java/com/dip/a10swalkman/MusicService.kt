@@ -13,17 +13,13 @@ import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.provider.MediaStore
-import kotlin.random.Random
 
 class MusicService : Service() {
 
     companion object {
 
-        private const val CHANNEL_ID =
-            "A10S_WALKMAN_MUSIC"
-
-        private const val NOTIFICATION_ID =
-            1001
+        private const val CHANNEL_ID = "A10S_WALKMAN_MUSIC"
+        private const val NOTIFICATION_ID = 1001
 
         const val ACTION_PLAY =
             "com.dip.a10swalkman.PLAY"
@@ -41,59 +37,53 @@ class MusicService : Service() {
             "com.dip.a10swalkman.STOP"
     }
 
-    // ========================================================================
+    // ================================================================
     // PLAYER
-    // ========================================================================
+    // ================================================================
 
     private var mediaPlayer: MediaPlayer? = null
 
-    private var playlist: List<MusicFile> =
-        emptyList()
+    private var playlist: List<MusicFile> = emptyList()
 
-    private var currentIndex =
-        -1
+    private var currentIndex = -1
 
-    private var currentSong:
-            MusicFile? = null
+    private var currentSong: MusicFile? = null
 
-    private var prepared =
-        false
+    private var prepared = false
 
-    private val binder =
-        MusicBinder()
+    private val binder = MusicBinder()
 
-
-    // ========================================================================
+    // ================================================================
     // SHUFFLE / REPEAT
-    //
-    // repeatMode:
-    //
-    // 0 = OFF
-    // 1 = REPEAT ALL
-    // 2 = REPEAT ONE
-    // ========================================================================
+    // ================================================================
 
-    private var shuffleEnabled =
-        false
+    /*
+     * 0 = OFF
+     * 1 = REPEAT ALL
+     * 2 = REPEAT ONE
+     */
 
-    private var repeatMode =
-        0
+    private var shuffleEnabled = false
 
-
-    // ========================================================================
-    // SHUFFLE ORDER
-    // ========================================================================
+    private var repeatMode = 0
 
     private var shuffleOrder =
         mutableListOf<Int>()
 
-    private var shufflePosition =
-        -1
+    private var shufflePosition = -1
 
+    // ================================================================
+    // QUEUE
+    // ================================================================
 
-    // ========================================================================
+    private val playbackQueue =
+        mutableListOf<MusicFile>()
+
+    private var queuePosition = -1
+
+    // ================================================================
     // BINDER
-    // ========================================================================
+    // ================================================================
 
     inner class MusicBinder : Binder() {
 
@@ -102,10 +92,9 @@ class MusicService : Service() {
         }
     }
 
-
-    // ========================================================================
+    // ================================================================
     // CREATE
-    // ========================================================================
+    // ================================================================
 
     override fun onCreate() {
 
@@ -114,9 +103,7 @@ class MusicService : Service() {
         createNotificationChannel()
 
         startForeground(
-
             NOTIFICATION_ID,
-
             createNotification(
                 "A10S Walkman",
                 "Ready"
@@ -124,10 +111,9 @@ class MusicService : Service() {
         )
     }
 
-
-    // ========================================================================
+    // ================================================================
     // BIND
-    // ========================================================================
+    // ================================================================
 
     override fun onBind(
         intent: Intent?
@@ -136,10 +122,9 @@ class MusicService : Service() {
         return binder
     }
 
-
-    // ========================================================================
+    // ================================================================
     // START COMMAND
-    // ========================================================================
+    // ================================================================
 
     override fun onStartCommand(
         intent: Intent?,
@@ -149,29 +134,23 @@ class MusicService : Service() {
 
         when (intent?.action) {
 
-            ACTION_PLAY ->
-                resume()
+            ACTION_PLAY -> resume()
 
-            ACTION_PAUSE ->
-                pause()
+            ACTION_PAUSE -> pause()
 
-            ACTION_NEXT ->
-                playNext()
+            ACTION_NEXT -> playNext()
 
-            ACTION_PREVIOUS ->
-                playPrevious()
+            ACTION_PREVIOUS -> playPrevious()
 
-            ACTION_STOP ->
-                stopPlayback()
+            ACTION_STOP -> stopPlayback()
         }
 
         return START_STICKY
     }
 
-
-    // ========================================================================
+    // ================================================================
     // PLAY SONG
-    // ========================================================================
+    // ================================================================
 
     fun playSong(
         song: MusicFile,
@@ -182,8 +161,7 @@ class MusicService : Service() {
             return
         }
 
-        playlist =
-            songs.toList()
+        playlist = songs.toList()
 
         currentIndex =
             playlist.indexOfFirst {
@@ -194,27 +172,14 @@ class MusicService : Service() {
             currentIndex = 0
         }
 
-        currentSong =
-            song
-
-        rebuildShuffleOrder()
+        currentSong = song
 
         if (shuffleEnabled) {
 
+            rebuildShuffleOrder()
+
             shufflePosition =
-                shuffleOrder.indexOf(
-                    currentIndex
-                )
-
-            if (shufflePosition < 0) {
-
-                shuffleOrder.add(
-                    currentIndex
-                )
-
-                shufflePosition =
-                    shuffleOrder.lastIndex
-            }
+                shuffleOrder.indexOf(currentIndex)
         }
 
         releasePlayer()
@@ -226,8 +191,7 @@ class MusicService : Service() {
             val player =
                 MediaPlayer()
 
-            mediaPlayer =
-                player
+            mediaPlayer = player
 
             player.setAudioAttributes(
 
@@ -244,23 +208,10 @@ class MusicService : Service() {
                     .build()
             )
 
-
-            // ================================================================
-            // CONTENT URI
-            // ================================================================
-
-            val uri =
-                Uri.parse(song.uri)
-
             player.setDataSource(
                 this,
-                uri
+                Uri.parse(song.uri)
             )
-
-
-            // ================================================================
-            // PREPARED
-            // ================================================================
 
             player.setOnPreparedListener {
 
@@ -281,22 +232,12 @@ class MusicService : Service() {
                 }
             }
 
-
-            // ================================================================
-            // COMPLETION
-            // ================================================================
-
             player.setOnCompletionListener {
 
                 prepared = false
 
                 handleCompletion()
             }
-
-
-            // ================================================================
-            // ERROR
-            // ================================================================
 
             player.setOnErrorListener {
 
@@ -316,7 +257,6 @@ class MusicService : Service() {
                 true
             }
 
-
             player.prepareAsync()
 
         } catch (e: Exception) {
@@ -334,10 +274,26 @@ class MusicService : Service() {
         }
     }
 
+    // ================================================================
+    // PLAY FROM LIBRARY
+    // ================================================================
 
-    // ========================================================================
-    // COMPLETION LOGIC
-    // ========================================================================
+    fun playSongFromLibrary(
+        song: MusicFile,
+        songs: List<MusicFile>
+    ) {
+
+        clearQueue()
+
+        playSong(
+            song,
+            songs
+        )
+    }
+
+    // ================================================================
+    // COMPLETION
+    // ================================================================
 
     private fun handleCompletion() {
 
@@ -358,9 +314,41 @@ class MusicService : Service() {
             return
         }
 
+        // ------------------------------------------------------------
+        // QUEUE
+        // ------------------------------------------------------------
+
+        if (playbackQueue.isNotEmpty()) {
+
+            val nextPosition =
+                queuePosition + 1
+
+            if (
+                nextPosition <
+                playbackQueue.size
+            ) {
+
+                queuePosition =
+                    nextPosition
+
+                val nextSong =
+                    playbackQueue[
+                        queuePosition
+                    ]
+
+                playSong(
+                    nextSong,
+                    playlist
+                )
+
+                return
+            }
+
+            clearQueue()
+        }
 
         // ------------------------------------------------------------
-        // PLAY NEXT
+        // NORMAL PLAYLIST
         // ------------------------------------------------------------
 
         val next =
@@ -378,9 +366,7 @@ class MusicService : Service() {
             return
         }
 
-
-        currentIndex =
-            next
+        currentIndex = next
 
         playSong(
             playlist[currentIndex],
@@ -388,10 +374,312 @@ class MusicService : Service() {
         )
     }
 
+    // ================================================================
+    // QUEUE
+    // ================================================================
 
-    // ========================================================================
+    fun addToQueue(
+        song: MusicFile
+    ) {
+
+        if (
+            playbackQueue.none {
+                it.id == song.id
+            }
+        ) {
+
+            playbackQueue.add(song)
+        }
+    }
+
+    // ================================================================
+    // ADD TO QUEUE NEXT
+    // ================================================================
+
+    fun addToQueueNext(
+        song: MusicFile
+    ) {
+
+        if (
+            playbackQueue.any {
+                it.id == song.id
+            }
+        ) {
+            return
+        }
+
+        if (playbackQueue.isEmpty()) {
+
+            playbackQueue.add(song)
+
+            if (queuePosition < 0) {
+                queuePosition = 0
+            }
+
+            return
+        }
+
+        val insertPosition =
+            (queuePosition + 1)
+                .coerceIn(
+                    0,
+                    playbackQueue.size
+                )
+
+        playbackQueue.add(
+            insertPosition,
+            song
+        )
+    }
+
+    // ================================================================
+    // REMOVE BY POSITION
+    // ================================================================
+
+    fun removeFromQueue(
+        position: Int
+    ) {
+
+        if (
+            position < 0 ||
+            position >= playbackQueue.size
+        ) {
+            return
+        }
+
+        playbackQueue.removeAt(position)
+
+        if (
+            playbackQueue.isEmpty()
+        ) {
+
+            queuePosition = -1
+
+            return
+        }
+
+        if (position < queuePosition) {
+
+            queuePosition--
+
+        } else if (
+            position == queuePosition
+        ) {
+
+            if (
+                queuePosition >=
+                playbackQueue.size
+            ) {
+
+                queuePosition =
+                    playbackQueue.lastIndex
+            }
+        }
+    }
+
+    // ================================================================
+    // REMOVE BY MUSIC FILE
+    //
+    // This fixes:
+    //
+    // Argument type mismatch:
+    // MusicFile but Int was expected
+    // ================================================================
+
+    fun removeFromQueue(
+        song: MusicFile
+    ) {
+
+        val position =
+            playbackQueue.indexOfFirst {
+                it.id == song.id
+            }
+
+        if (position >= 0) {
+
+            removeFromQueue(position)
+        }
+    }
+
+    // ================================================================
+    // CLEAR QUEUE
+    // ================================================================
+
+    fun clearQueue() {
+
+        playbackQueue.clear()
+
+        queuePosition = -1
+    }
+
+    // ================================================================
+    // GET QUEUE
+    // ================================================================
+
+    fun getQueue(): List<MusicFile> {
+
+        return playbackQueue.toList()
+    }
+
+    // ================================================================
+    // QUEUE POSITION
+    // ================================================================
+
+    fun getQueuePosition(): Int {
+
+        return queuePosition
+    }
+
+    // ================================================================
+    // QUEUE SIZE
+    // ================================================================
+
+    fun getQueueSize(): Int {
+
+        return playbackQueue.size
+    }
+
+    // ================================================================
+    // PLAY NEXT
+    // ================================================================
+
+    fun playNext() {
+
+        if (playlist.isEmpty()) {
+            return
+        }
+
+        // ------------------------------------------------------------
+        // QUEUE
+        // ------------------------------------------------------------
+
+        if (
+            playbackQueue.isNotEmpty()
+        ) {
+
+            val nextPosition =
+                queuePosition + 1
+
+            if (
+                nextPosition <
+                playbackQueue.size
+            ) {
+
+                queuePosition =
+                    nextPosition
+
+                val song =
+                    playbackQueue[
+                        queuePosition
+                    ]
+
+                playSong(
+                    song,
+                    playlist
+                )
+
+                return
+            }
+
+            clearQueue()
+        }
+
+        // ------------------------------------------------------------
+        // NORMAL
+        // ------------------------------------------------------------
+
+        val next =
+            getNextIndex()
+
+        if (next == -1) {
+            return
+        }
+
+        currentIndex = next
+
+        playSong(
+            playlist[currentIndex],
+            playlist
+        )
+    }
+
+    // ================================================================
+    // PLAY NEXT - MUSIC FILE OVERLOAD
+    //
+    // This fixes:
+    //
+    // MainActivity calling:
+    //
+    // playNext(song)
+    // ================================================================
+
+    fun playNext(
+        song: MusicFile
+    ) {
+
+        if (playlist.isEmpty()) {
+            return
+        }
+
+        val position =
+            playbackQueue.indexOfFirst {
+                it.id == song.id
+            }
+
+        if (position >= 0) {
+
+            queuePosition = position
+
+            playSong(
+                song,
+                playlist
+            )
+
+            return
+        }
+
+        addToQueueNext(song)
+
+        val newPosition =
+            playbackQueue.indexOfFirst {
+                it.id == song.id
+            }
+
+        if (newPosition >= 0) {
+
+            queuePosition = newPosition
+
+            playSong(
+                song,
+                playlist
+            )
+        }
+    }
+
+    // ================================================================
+    // PLAY NEXT - LIST OVERLOAD
+    //
+    // Supports calls such as:
+    //
+    // playNext(songs)
+    // ================================================================
+
+    fun playNext(
+        songs: List<MusicFile>
+    ) {
+
+        if (songs.isEmpty()) {
+            return
+        }
+
+        playlist = songs.toList()
+
+        playNext()
+    }
+
+    // ================================================================
     // RESUME
-    // ========================================================================
+    // ================================================================
 
     fun resume() {
 
@@ -423,10 +711,9 @@ class MusicService : Service() {
         }
     }
 
-
-    // ========================================================================
+    // ================================================================
     // PAUSE
-    // ========================================================================
+    // ================================================================
 
     fun pause() {
 
@@ -458,10 +745,9 @@ class MusicService : Service() {
         }
     }
 
-
-    // ========================================================================
+    // ================================================================
     // TOGGLE
-    // ========================================================================
+    // ================================================================
 
     fun togglePlayPause() {
 
@@ -475,10 +761,9 @@ class MusicService : Service() {
         }
     }
 
-
-    // ========================================================================
+    // ================================================================
     // SHUFFLE
-    // ========================================================================
+    // ================================================================
 
     fun toggleShuffle(): Boolean {
 
@@ -490,7 +775,6 @@ class MusicService : Service() {
         return shuffleEnabled
     }
 
-
     fun setShuffle(
         enabled: Boolean
     ) {
@@ -501,16 +785,14 @@ class MusicService : Service() {
         rebuildShuffleOrder()
     }
 
-
     fun isShuffleEnabled(): Boolean {
 
         return shuffleEnabled
     }
 
-
-    // ========================================================================
-    // BUILD SHUFFLE ORDER
-    // ========================================================================
+    // ================================================================
+    // REBUILD SHUFFLE
+    // ================================================================
 
     private fun rebuildShuffleOrder() {
 
@@ -532,16 +814,13 @@ class MusicService : Service() {
             return
         }
 
-
         val current =
             currentIndex
-
 
         shuffleOrder =
             playlist.indices
                 .shuffled()
                 .toMutableList()
-
 
         if (
             current >= 0 &&
@@ -556,7 +835,6 @@ class MusicService : Service() {
             )
         }
 
-
         shufflePosition =
             if (current >= 0) {
 
@@ -570,10 +848,9 @@ class MusicService : Service() {
             }
     }
 
-
-    // ========================================================================
+    // ================================================================
     // NEXT INDEX
-    // ========================================================================
+    // ================================================================
 
     private fun getNextIndex(): Int {
 
@@ -581,10 +858,9 @@ class MusicService : Service() {
             return -1
         }
 
-
-        // ================================================================
+        // ------------------------------------------------------------
         // SHUFFLE
-        // ================================================================
+        // ------------------------------------------------------------
 
         if (shuffleEnabled) {
 
@@ -595,10 +871,8 @@ class MusicService : Service() {
                 rebuildShuffleOrder()
             }
 
-
             val nextPosition =
                 shufflePosition + 1
-
 
             if (
                 nextPosition <
@@ -612,11 +886,6 @@ class MusicService : Service() {
                     shufflePosition
                 ]
             }
-
-
-            // ------------------------------------------------------------
-            // SHUFFLE FINISHED
-            // ------------------------------------------------------------
 
             if (repeatMode == 1) {
 
@@ -635,14 +904,12 @@ class MusicService : Service() {
             return -1
         }
 
-
-        // ================================================================
-        // NORMAL ORDER
-        // ================================================================
+        // ------------------------------------------------------------
+        // NORMAL
+        // ------------------------------------------------------------
 
         val next =
             currentIndex + 1
-
 
         if (
             next <
@@ -652,68 +919,27 @@ class MusicService : Service() {
             return next
         }
 
-
-        // ================================================================
+        // ------------------------------------------------------------
         // REPEAT ALL
-        // ================================================================
+        // ------------------------------------------------------------
 
         if (repeatMode == 1) {
 
             return 0
         }
 
-
-        // ================================================================
-        // END
-        // ================================================================
-
         return -1
     }
 
-
-    // ========================================================================
-    // NEXT
-    // ========================================================================
-
-    fun playNext() {
-
-        if (playlist.isEmpty()) {
-            return
-        }
-
-        val next =
-            getNextIndex()
-
-        if (next == -1) {
-
-            return
-        }
-
-        currentIndex =
-            next
-
-        playSong(
-            playlist[currentIndex],
-            playlist
-        )
-    }
-
-
-    // ========================================================================
+    // ================================================================
     // PREVIOUS
-    // ========================================================================
+    // ================================================================
 
     fun playPrevious() {
 
         if (playlist.isEmpty()) {
             return
         }
-
-
-        // ------------------------------------------------------------
-        // If more than 3 seconds into song,
-        // previous should restart current song.
-        // ------------------------------------------------------------
 
         if (
             getCurrentPosition() > 3000
@@ -724,6 +950,41 @@ class MusicService : Service() {
             return
         }
 
+        // ------------------------------------------------------------
+        // QUEUE
+        // ------------------------------------------------------------
+
+        if (
+            playbackQueue.isNotEmpty()
+        ) {
+
+            val previousPosition =
+                queuePosition - 1
+
+            if (
+                previousPosition >= 0
+            ) {
+
+                queuePosition =
+                    previousPosition
+
+                val song =
+                    playbackQueue[
+                        queuePosition
+                    ]
+
+                playSong(
+                    song,
+                    playlist
+                )
+
+                return
+            }
+        }
+
+        // ------------------------------------------------------------
+        // SHUFFLE
+        // ------------------------------------------------------------
 
         if (shuffleEnabled) {
 
@@ -750,7 +1011,6 @@ class MusicService : Service() {
                 return
             }
 
-
             if (repeatMode == 1) {
 
                 shufflePosition =
@@ -774,12 +1034,14 @@ class MusicService : Service() {
                 return
             }
 
-
             seekTo(0)
 
             return
         }
 
+        // ------------------------------------------------------------
+        // NORMAL
+        // ------------------------------------------------------------
 
         currentIndex--
 
@@ -800,30 +1062,26 @@ class MusicService : Service() {
             }
         }
 
-
         playSong(
             playlist[currentIndex],
             playlist
         )
     }
 
-
-    // ========================================================================
+    // ================================================================
     // REPEAT
-    // ========================================================================
+    // ================================================================
 
     fun cycleRepeatMode(): Int {
 
         repeatMode++
 
         if (repeatMode > 2) {
-
             repeatMode = 0
         }
 
         return repeatMode
     }
-
 
     fun setRepeatMode(
         mode: Int
@@ -836,16 +1094,14 @@ class MusicService : Service() {
             )
     }
 
-
     fun getRepeatMode(): Int {
 
         return repeatMode
     }
 
-
-    // ========================================================================
+    // ================================================================
     // STOP
-    // ========================================================================
+    // ================================================================
 
     fun stopPlayback() {
 
@@ -862,16 +1118,17 @@ class MusicService : Service() {
 
         currentIndex = -1
 
+        clearQueue()
+
         updateNotification(
             "A10S Walkman",
             "Stopped"
         )
     }
 
-
-    // ========================================================================
+    // ================================================================
     // RELEASE PLAYER
-    // ========================================================================
+    // ================================================================
 
     private fun releasePlayer() {
 
@@ -894,10 +1151,9 @@ class MusicService : Service() {
         prepared = false
     }
 
-
-    // ========================================================================
-    // PLAYING
-    // ========================================================================
+    // ================================================================
+    // IS PLAYING
+    // ================================================================
 
     fun isPlaying(): Boolean {
 
@@ -912,21 +1168,36 @@ class MusicService : Service() {
         }
     }
 
-
-    // ========================================================================
+    // ================================================================
     // CURRENT SONG
-    // ========================================================================
+    // ================================================================
 
-    fun getCurrentSong():
-            MusicFile? {
+    fun getCurrentSong(): MusicFile? {
 
         return currentSong
     }
 
+    // ================================================================
+    // CURRENT INDEX
+    // ================================================================
 
-    // ========================================================================
+    fun getCurrentIndex(): Int {
+
+        return currentIndex
+    }
+
+    // ================================================================
+    // PLAYLIST
+    // ================================================================
+
+    fun getPlaylist(): List<MusicFile> {
+
+        return playlist.toList()
+    }
+
+    // ================================================================
     // CURRENT POSITION
-    // ========================================================================
+    // ================================================================
 
     fun getCurrentPosition(): Int {
 
@@ -945,10 +1216,9 @@ class MusicService : Service() {
         }
     }
 
-
-    // ========================================================================
+    // ================================================================
     // DURATION
-    // ========================================================================
+    // ================================================================
 
     fun getDuration(): Int {
 
@@ -967,10 +1237,9 @@ class MusicService : Service() {
         }
     }
 
-
-    // ========================================================================
+    // ================================================================
     // SEEK
-    // ========================================================================
+    // ================================================================
 
     fun seekTo(
         position: Int
@@ -1002,21 +1271,17 @@ class MusicService : Service() {
         }
     }
 
+    // ================================================================
+    // LOAD SONGS
+    // ================================================================
 
-    // ========================================================================
-    // LOAD MUSIC
-    // ========================================================================
-
-    fun loadSongs():
-            List<MusicFile> {
+    fun loadSongs(): List<MusicFile> {
 
         val songs =
             mutableListOf<MusicFile>()
 
-
         val collection =
             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-
 
         val projection =
             arrayOf(
@@ -1038,14 +1303,11 @@ class MusicService : Service() {
                 MediaStore.Audio.Media.MIME_TYPE
             )
 
-
         val selection =
             "${MediaStore.Audio.Media.IS_MUSIC} != 0"
 
-
         val sortOrder =
             "${MediaStore.Audio.Media.TITLE} COLLATE NOCASE ASC"
-
 
         val cursor =
             contentResolver.query(
@@ -1061,68 +1323,56 @@ class MusicService : Service() {
                 sortOrder
             )
 
-
         cursor?.use {
-
 
             val idColumn =
                 it.getColumnIndexOrThrow(
                     MediaStore.Audio.Media._ID
                 )
 
-
             val titleColumn =
                 it.getColumnIndexOrThrow(
                     MediaStore.Audio.Media.TITLE
                 )
-
 
             val artistColumn =
                 it.getColumnIndexOrThrow(
                     MediaStore.Audio.Media.ARTIST
                 )
 
-
             val albumColumn =
                 it.getColumnIndexOrThrow(
                     MediaStore.Audio.Media.ALBUM
                 )
-
 
             val albumIdColumn =
                 it.getColumnIndexOrThrow(
                     MediaStore.Audio.Media.ALBUM_ID
                 )
 
-
             val durationColumn =
                 it.getColumnIndexOrThrow(
                     MediaStore.Audio.Media.DURATION
                 )
-
 
             val dataColumn =
                 it.getColumnIndexOrThrow(
                     MediaStore.Audio.Media.DATA
                 )
 
-
             val mimeColumn =
                 it.getColumnIndexOrThrow(
                     MediaStore.Audio.Media.MIME_TYPE
                 )
-
 
             while (it.moveToNext()) {
 
                 val id =
                     it.getLong(idColumn)
 
-
                 val title =
                     it.getString(titleColumn)
                         ?: "Unknown Title"
-
 
                 val artist =
                     it.getString(artistColumn)
@@ -1131,7 +1381,6 @@ class MusicService : Service() {
                         }
                         ?: "Unknown Artist"
 
-
                 val album =
                     it.getString(albumColumn)
                         ?.takeIf {
@@ -1139,39 +1388,28 @@ class MusicService : Service() {
                         }
                         ?: "Unknown Album"
 
-
                 val albumId =
                     it.getLong(albumIdColumn)
 
-
                 val duration =
-                    it.getLong(
-                        durationColumn
-                    )
-
+                    it.getLong(durationColumn)
 
                 val path =
                     it.getString(dataColumn)
                         ?: ""
 
-
                 val mimeType =
                     it.getString(mimeColumn)
                         ?: "audio/*"
 
-
                 val contentUri =
                     Uri.withAppendedPath(
-
                         collection,
-
                         id.toString()
                     )
 
-
                 val genre =
                     getGenreForAudio(id)
-
 
                 songs.add(
 
@@ -1202,14 +1440,12 @@ class MusicService : Service() {
             }
         }
 
-
         return songs
     }
 
-
-    // ========================================================================
+    // ================================================================
     // GENRE
-    // ========================================================================
+    // ================================================================
 
     private fun getGenreForAudio(
         audioId: Long
@@ -1224,12 +1460,10 @@ class MusicService : Service() {
                         audioId.toInt()
                     )
 
-
             val projection =
                 arrayOf(
                     MediaStore.Audio.Genres.NAME
                 )
-
 
             contentResolver.query(
 
@@ -1266,10 +1500,9 @@ class MusicService : Service() {
         }
     }
 
-
-    // ========================================================================
+    // ================================================================
     // NOTIFICATION CHANNEL
-    // ========================================================================
+    // ================================================================
 
     private fun createNotificationChannel() {
 
@@ -1294,12 +1527,10 @@ class MusicService : Service() {
 
             channel.setShowBadge(false)
 
-
             val manager =
                 getSystemService(
                     NotificationManager::class.java
                 )
-
 
             manager.createNotificationChannel(
                 channel
@@ -1307,10 +1538,9 @@ class MusicService : Service() {
         }
     }
 
-
-    // ========================================================================
+    // ================================================================
     // NOTIFICATION
-    // ========================================================================
+    // ================================================================
 
     private fun createNotification(
         title: String,
@@ -1322,7 +1552,6 @@ class MusicService : Service() {
                 this,
                 MainActivity::class.java
             )
-
 
         val openPendingIntent =
             PendingIntent.getActivity(
@@ -1337,11 +1566,6 @@ class MusicService : Service() {
                         PendingIntent.FLAG_IMMUTABLE
             )
 
-
-        // --------------------------------------------------------------------
-        // PREVIOUS
-        // --------------------------------------------------------------------
-
         val previousIntent =
             Intent(
                 this,
@@ -1350,7 +1574,6 @@ class MusicService : Service() {
 
         previousIntent.action =
             ACTION_PREVIOUS
-
 
         val previousPending =
             PendingIntent.getService(
@@ -1365,11 +1588,6 @@ class MusicService : Service() {
                         PendingIntent.FLAG_IMMUTABLE
             )
 
-
-        // --------------------------------------------------------------------
-        // PLAY
-        // --------------------------------------------------------------------
-
         val playIntent =
             Intent(
                 this,
@@ -1378,7 +1596,6 @@ class MusicService : Service() {
 
         playIntent.action =
             ACTION_PLAY
-
 
         val playPending =
             PendingIntent.getService(
@@ -1393,11 +1610,6 @@ class MusicService : Service() {
                         PendingIntent.FLAG_IMMUTABLE
             )
 
-
-        // --------------------------------------------------------------------
-        // PAUSE
-        // --------------------------------------------------------------------
-
         val pauseIntent =
             Intent(
                 this,
@@ -1406,7 +1618,6 @@ class MusicService : Service() {
 
         pauseIntent.action =
             ACTION_PAUSE
-
 
         val pausePending =
             PendingIntent.getService(
@@ -1421,11 +1632,6 @@ class MusicService : Service() {
                         PendingIntent.FLAG_IMMUTABLE
             )
 
-
-        // --------------------------------------------------------------------
-        // NEXT
-        // --------------------------------------------------------------------
-
         val nextIntent =
             Intent(
                 this,
@@ -1434,7 +1640,6 @@ class MusicService : Service() {
 
         nextIntent.action =
             ACTION_NEXT
-
 
         val nextPending =
             PendingIntent.getService(
@@ -1449,11 +1654,6 @@ class MusicService : Service() {
                         PendingIntent.FLAG_IMMUTABLE
             )
 
-
-        // --------------------------------------------------------------------
-        // STOP
-        // --------------------------------------------------------------------
-
         val stopIntent =
             Intent(
                 this,
@@ -1462,7 +1662,6 @@ class MusicService : Service() {
 
         stopIntent.action =
             ACTION_STOP
-
 
         val stopPending =
             PendingIntent.getService(
@@ -1476,7 +1675,6 @@ class MusicService : Service() {
                 PendingIntent.FLAG_UPDATE_CURRENT or
                         PendingIntent.FLAG_IMMUTABLE
             )
-
 
         val builder =
 
@@ -1492,15 +1690,10 @@ class MusicService : Service() {
 
             } else {
 
-                @Suppress(
-                    "DEPRECATION"
-                )
+                @Suppress("DEPRECATION")
 
-                Notification.Builder(
-                    this
-                )
+                Notification.Builder(this)
             }
-
 
         builder
 
@@ -1521,7 +1714,6 @@ class MusicService : Service() {
 
             .setOnlyAlertOnce(true)
 
-
         builder.addAction(
 
             Notification.Action.Builder(
@@ -1534,7 +1726,6 @@ class MusicService : Service() {
 
             ).build()
         )
-
 
         if (isPlaying()) {
 
@@ -1567,7 +1758,6 @@ class MusicService : Service() {
             )
         }
 
-
         builder.addAction(
 
             Notification.Action.Builder(
@@ -1580,7 +1770,6 @@ class MusicService : Service() {
 
             ).build()
         )
-
 
         builder.addAction(
 
@@ -1595,14 +1784,12 @@ class MusicService : Service() {
             ).build()
         )
 
-
         return builder.build()
     }
 
-
-    // ========================================================================
+    // ================================================================
     // UPDATE NOTIFICATION
-    // ========================================================================
+    // ================================================================
 
     private fun updateNotification(
         title: String,
@@ -1613,7 +1800,6 @@ class MusicService : Service() {
             getSystemService(
                 NotificationManager::class.java
             )
-
 
         manager.notify(
 
@@ -1626,10 +1812,9 @@ class MusicService : Service() {
         )
     }
 
-
-    // ========================================================================
+    // ================================================================
     // DESTROY
-    // ========================================================================
+    // ================================================================
 
     override fun onDestroy() {
 
@@ -1637,8 +1822,7 @@ class MusicService : Service() {
 
         currentSong = null
 
-        playlist =
-            emptyList()
+        playlist = emptyList()
 
         currentIndex = -1
 
@@ -1646,6 +1830,7 @@ class MusicService : Service() {
 
         shufflePosition = -1
 
+        clearQueue()
 
         if (
             Build.VERSION.SDK_INT >=
@@ -1658,13 +1843,10 @@ class MusicService : Service() {
 
         } else {
 
-            @Suppress(
-                "DEPRECATION"
-            )
+            @Suppress("DEPRECATION")
 
             stopForeground(true)
         }
-
 
         super.onDestroy()
     }
