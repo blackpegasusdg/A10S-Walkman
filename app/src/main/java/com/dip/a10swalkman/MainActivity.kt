@@ -4,17 +4,35 @@ import android.Manifest
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import androidx.compose.material.icons.filled.VisibilityOff
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
-import androidx.core.view.WindowCompat
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.createSupabaseClient
+
+import kotlinx.coroutines.launch
+
+import androidx.compose.material.icons.filled.Visibility
+
 
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -43,6 +61,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
@@ -55,9 +74,12 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 
+
+
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -86,9 +108,32 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import androidx.core.view.WindowCompat
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+// ============================================================================
+// SUPABASE
+// ============================================================================
+
+private const val SUPABASE_URL =
+    "https://wsgehosguxntwhfefpwj.supabase.co"
+
+private const val SUPABASE_ANON_KEY =
+    "sb_publishable_hRf2IAU91b_12caIdkAJAg_-K-27n9e"
+
+
+val supabase =
+    createSupabaseClient(
+        supabaseUrl = SUPABASE_URL,
+        supabaseKey = SUPABASE_ANON_KEY
+    ) {
+
+        install(
+            io.github.jan.supabase.auth.Auth
+        )
+    }
 
 
 // ============================================================================
@@ -167,7 +212,11 @@ class MainActivity : ComponentActivity() {
     ) {
 
         super.onCreate(savedInstanceState)
-        WindowCompat.setDecorFitsSystemWindows(window, true)
+
+        WindowCompat.setDecorFitsSystemWindows(
+            window,
+            true
+        )
 
         startMusicService()
 
@@ -329,6 +378,28 @@ class MainActivity : ComponentActivity() {
 // ============================================================================
 // APP
 // ============================================================================
+//
+// NEW LOGIN FLOW
+//
+// First launch:
+//
+//      LOGIN
+//        ↓
+//   successful login
+//        ↓
+//     WALKMAN
+//
+// Subsequent launches:
+//
+//      saved login
+//        ↓
+//     WALKMAN
+//
+// ============================================================================
+
+// ============================================================================
+// APP
+// ============================================================================
 
 @Composable
 fun WalkmanApp(
@@ -348,16 +419,1164 @@ fun WalkmanApp(
                 Color(0xFF080808)
         ) {
 
-            WalkmanScreen(
+            var loggedIn by remember {
 
-                songs = songs,
+                mutableStateOf(false)
+            }
 
-                service = service,
 
-                requestPermission =
-                    requestPermission
+            var checkingLogin by remember {
+
+                mutableStateOf(true)
+            }
+
+
+            // ================================================================
+            // CHECK ONLINE SUPABASE SESSION
+            // ================================================================
+
+            LaunchedEffect(Unit) {
+
+                try {
+
+                    val session =
+                        supabase.auth.currentSessionOrNull()
+
+                    loggedIn =
+                        session != null
+
+                } catch (_: Exception) {
+
+                    loggedIn = false
+                }
+
+
+                checkingLogin = false
+            }
+
+
+            // ================================================================
+            // CHECKING LOGIN
+            // ================================================================
+
+            if (checkingLogin) {
+
+                Column(
+
+                    modifier =
+                        Modifier.fillMaxSize(),
+
+                    horizontalAlignment =
+                        Alignment.CenterHorizontally,
+
+                    verticalArrangement =
+                        Arrangement.Center
+                ) {
+
+                    CircularProgressIndicator(
+                        color =
+                            Color.White
+                    )
+
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(15.dp)
+                    )
+
+
+                    Text(
+
+                        text =
+                            "Connecting...",
+
+                        color =
+                            Color.Gray,
+
+                        fontSize =
+                            13.sp
+                    )
+                }
+
+
+                // ================================================================
+                // LOGIN
+                // ================================================================
+
+            } else if (!loggedIn) {
+
+                OnlineLoginScreen(
+
+                    onLoginSuccess = {
+
+                        loggedIn = true
+                    }
+                )
+
+
+                // ================================================================
+                // EXISTING WALKMAN
+                // ================================================================
+
+            } else {
+
+                WalkmanScreen(
+
+                    songs = songs,
+
+                    service = service,
+
+                    requestPermission =
+                        requestPermission
+                )
+            }
+        }
+    }
+}
+// ============================================================================
+// ONLINE LOGIN SCREEN
+// ============================================================================
+
+@Composable
+fun OnlineLoginScreen(
+    onLoginSuccess: () -> Unit
+) {
+
+    val scope =
+        rememberCoroutineScope()
+
+
+    var email by remember {
+
+        mutableStateOf("")
+    }
+
+
+    var password by remember {
+
+        mutableStateOf("")
+    }
+
+
+    var passwordVisible by remember {
+
+        mutableStateOf(false)
+    }
+
+
+    var loading by remember {
+
+        mutableStateOf(false)
+    }
+
+
+    var errorMessage by remember {
+
+        mutableStateOf("")
+    }
+
+
+    Column(
+
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Color(0xFF080808)
+                )
+                .padding(
+                    horizontal = 25.dp
+                ),
+
+        horizontalAlignment =
+            Alignment.CenterHorizontally,
+
+        verticalArrangement =
+            Arrangement.Center
+    ) {
+
+
+        // ====================================================================
+        // EXISTING WALKMAN STYLE
+        // ====================================================================
+
+        Icon(
+
+            Icons.Default.MusicNote,
+
+            contentDescription =
+                null,
+
+            tint =
+                Color.White,
+
+            modifier =
+                Modifier.size(70.dp)
+        )
+
+
+        Spacer(
+            modifier =
+                Modifier.height(15.dp)
+        )
+
+
+        Text(
+
+            text =
+                "A10S",
+
+            color =
+                Color.White,
+
+            fontSize =
+                30.sp,
+
+            fontWeight =
+                FontWeight.Bold
+        )
+
+
+        Text(
+
+            text =
+                "WALKMAN",
+
+            color =
+                Color(0xFF888888),
+
+            fontSize =
+                10.sp,
+
+            letterSpacing =
+                3.sp
+        )
+
+
+        Spacer(
+            modifier =
+                Modifier.height(35.dp)
+        )
+
+
+        Text(
+
+            text =
+                "LOGIN",
+
+            color =
+                Color.White,
+
+            fontSize =
+                20.sp,
+
+            fontWeight =
+                FontWeight.Bold
+        )
+
+
+        Spacer(
+            modifier =
+                Modifier.height(20.dp)
+        )
+
+
+        // ====================================================================
+        // EMAIL
+        // ====================================================================
+
+        OutlinedTextField(
+
+            value =
+                email,
+
+            onValueChange = {
+
+                email = it
+
+                errorMessage = ""
+            },
+
+            modifier =
+                Modifier.fillMaxWidth(),
+
+            singleLine =
+                true,
+
+            label = {
+
+                Text(
+                    "Email"
+                )
+            },
+
+            keyboardOptions =
+                KeyboardOptions(
+                    keyboardType =
+                        KeyboardType.Email
+                ),
+
+            colors =
+                OutlinedTextFieldDefaults.colors(
+
+                    focusedTextColor =
+                        Color.White,
+
+                    unfocusedTextColor =
+                        Color.White,
+
+                    focusedBorderColor =
+                        Color.White,
+
+                    unfocusedBorderColor =
+                        Color(0xFF555555),
+
+                    focusedLabelColor =
+                        Color.White,
+
+                    unfocusedLabelColor =
+                        Color(0xFF888888),
+
+                    cursorColor =
+                        Color.White
+                )
+        )
+
+
+        Spacer(
+            modifier =
+                Modifier.height(12.dp)
+        )
+
+
+        // ====================================================================
+        // PASSWORD
+        // ====================================================================
+
+        OutlinedTextField(
+
+            value =
+                password,
+
+            onValueChange = {
+
+                password = it
+
+                errorMessage = ""
+            },
+
+            modifier =
+                Modifier.fillMaxWidth(),
+
+            singleLine =
+                true,
+
+            label = {
+
+                Text(
+                    "Password"
+                )
+            },
+
+            visualTransformation =
+                if (passwordVisible)
+
+                    VisualTransformation.None
+
+                else
+
+                    PasswordVisualTransformation(),
+
+            trailingIcon = {
+
+                IconButton(
+
+                    onClick = {
+
+                        passwordVisible =
+                            !passwordVisible
+                    }
+
+                ) {
+
+                    Icon(
+
+                        imageVector =
+
+                            if (passwordVisible)
+
+                                Icons.Default.VisibilityOff
+
+                            else
+
+                                Icons.Default.Visibility,
+
+                        contentDescription =
+                            "Show password",
+
+                        tint =
+                            Color.White
+                    )
+                }
+            },
+
+            colors =
+                OutlinedTextFieldDefaults.colors(
+
+                    focusedTextColor =
+                        Color.White,
+
+                    unfocusedTextColor =
+                        Color.White,
+
+                    focusedBorderColor =
+                        Color.White,
+
+                    unfocusedBorderColor =
+                        Color(0xFF555555),
+
+                    focusedLabelColor =
+                        Color.White,
+
+                    unfocusedLabelColor =
+                        Color(0xFF888888),
+
+                    cursorColor =
+                        Color.White
+                )
+        )
+
+
+        Spacer(
+            modifier =
+                Modifier.height(15.dp)
+        )
+
+
+        // ====================================================================
+        // ERROR
+        // ====================================================================
+
+        if (
+            errorMessage.isNotEmpty()
+        ) {
+
+            Text(
+
+                text =
+                    errorMessage,
+
+                color =
+                    Color(0xFFFF6666),
+
+                fontSize =
+                    12.sp,
+
+                modifier =
+                    Modifier.fillMaxWidth()
+            )
+
+
+            Spacer(
+                modifier =
+                    Modifier.height(10.dp)
             )
         }
+
+
+        // ====================================================================
+        // LOGIN BUTTON
+        // ====================================================================
+
+        Button(
+
+            onClick = {
+
+                if (
+                    email.trim().isEmpty()
+                ) {
+
+                    errorMessage =
+                        "Enter your email"
+
+                    return@Button
+                }
+
+
+                if (
+                    password.isEmpty()
+                ) {
+
+                    errorMessage =
+                        "Enter your password"
+
+                    return@Button
+                }
+
+
+                scope.launch {
+
+                    loading = true
+
+                    errorMessage = ""
+
+
+                    try {
+
+                        // ----------------------------------------------------
+                        // ONLINE SUPABASE LOGIN
+                        // ----------------------------------------------------
+
+                        supabase.auth.signInWith(
+                            Email
+                        ) {
+
+                            this.email =
+                                email.trim()
+
+                            this.password =
+                                password
+                        }
+
+
+                        loading = false
+
+
+                        // ----------------------------------------------------
+                        // LOGIN SUCCESS
+                        // ----------------------------------------------------
+
+                        onLoginSuccess()
+
+                    } catch (e: Exception) {
+
+                        loading = false
+
+
+                        errorMessage =
+                            e.message
+                                ?: "Login failed"
+                    }
+                }
+            },
+
+            enabled =
+                !loading,
+
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+
+            shape =
+                RoundedCornerShape(
+                    10.dp
+                ),
+
+            colors =
+                ButtonDefaults.buttonColors(
+
+                    containerColor =
+                        Color.White,
+
+                    contentColor =
+                        Color.Black
+                )
+        ) {
+
+            if (loading) {
+
+                CircularProgressIndicator(
+
+                    modifier =
+                        Modifier.size(22.dp),
+
+                    color =
+                        Color.Black,
+
+                    strokeWidth =
+                        2.dp
+                )
+
+            } else {
+
+                Text(
+
+                    text =
+                        "LOGIN",
+
+                    fontWeight =
+                        FontWeight.Bold
+                )
+            }
+        }
+
+
+        Spacer(
+            modifier =
+                Modifier.height(15.dp)
+        )
+
+
+        Text(
+
+            text =
+                "Online authentication",
+
+            color =
+                Color(0xFF555555),
+
+            fontSize =
+                10.sp
+        )
+    }
+}
+// ============================================================================
+// LOGIN SCREEN
+// ============================================================================
+
+@Composable
+fun LoginScreen(
+    onLoginSuccess: () -> Unit
+) {
+
+    val context =
+        LocalContext.current
+
+
+    val preferences =
+        remember {
+
+            context.getSharedPreferences(
+                "a10s_walkman",
+                Context.MODE_PRIVATE
+            )
+        }
+
+
+    var username by remember {
+
+        mutableStateOf("")
+    }
+
+
+    var password by remember {
+
+        mutableStateOf("")
+    }
+
+
+    var passwordVisible by remember {
+
+        mutableStateOf(false)
+    }
+
+
+    var errorMessage by remember {
+
+        mutableStateOf("")
+    }
+
+
+    Column(
+
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Color(0xFF080808)
+                )
+                .padding(
+                    horizontal = 32.dp
+                ),
+
+        horizontalAlignment =
+            Alignment.CenterHorizontally,
+
+        verticalArrangement =
+            Arrangement.Center
+    ) {
+
+
+        // =====================================================================
+        // LOGO
+        // =====================================================================
+
+        Box(
+
+            modifier =
+                Modifier
+                    .size(90.dp)
+                    .clip(
+                        CircleShape
+                    )
+                    .background(
+                        Color.White
+                    ),
+
+            contentAlignment =
+                Alignment.Center
+        ) {
+
+            Icon(
+
+                Icons.Default.MusicNote,
+
+                contentDescription =
+                    null,
+
+                tint =
+                    Color.Black,
+
+                modifier =
+                    Modifier.size(50.dp)
+            )
+        }
+
+
+        Spacer(
+            modifier =
+                Modifier.height(22.dp)
+        )
+
+
+        Text(
+
+            text =
+                "A10S",
+
+            color =
+                Color.White,
+
+            fontSize =
+                32.sp,
+
+            fontWeight =
+                FontWeight.Bold
+        )
+
+
+        Text(
+
+            text =
+                "WALKMAN",
+
+            color =
+                Color(0xFF888888),
+
+            fontSize =
+                11.sp,
+
+            letterSpacing =
+                5.sp
+        )
+
+
+        Spacer(
+            modifier =
+                Modifier.height(45.dp)
+        )
+
+
+        // =====================================================================
+        // USERNAME
+        // =====================================================================
+
+        OutlinedTextField(
+
+            value =
+                username,
+
+            onValueChange = {
+
+                username = it
+
+                errorMessage = ""
+            },
+
+            modifier =
+                Modifier.fillMaxWidth(),
+
+            singleLine =
+                true,
+
+            label = {
+
+                Text(
+                    text = "Username"
+                )
+            },
+
+            leadingIcon = {
+
+                Icon(
+
+                    Icons.Default.Person,
+
+                    contentDescription =
+                        null
+                )
+            },
+
+            colors =
+                OutlinedTextFieldDefaults.colors(
+
+                    focusedTextColor =
+                        Color.White,
+
+                    unfocusedTextColor =
+                        Color.White,
+
+                    focusedBorderColor =
+                        Color.White,
+
+                    unfocusedBorderColor =
+                        Color(0xFF555555),
+
+                    focusedLabelColor =
+                        Color.White,
+
+                    unfocusedLabelColor =
+                        Color(0xFF888888),
+
+                    cursorColor =
+                        Color.White,
+
+                    focusedLeadingIconColor =
+                        Color.White,
+
+                    unfocusedLeadingIconColor =
+                        Color(0xFF777777)
+                )
+        )
+
+
+        Spacer(
+            modifier =
+                Modifier.height(14.dp)
+        )
+
+
+        // =====================================================================
+        // PASSWORD
+        // =====================================================================
+
+        OutlinedTextField(
+
+            value =
+                password,
+
+            onValueChange = {
+
+                password = it
+
+                errorMessage = ""
+            },
+
+            modifier =
+                Modifier.fillMaxWidth(),
+
+            singleLine =
+                true,
+
+            label = {
+
+                Text(
+                    text = "Password"
+                )
+            },
+
+            visualTransformation =
+
+                if (passwordVisible)
+                    VisualTransformation.None
+                else
+                    PasswordVisualTransformation(),
+
+            leadingIcon = {
+
+                Icon(
+
+                    Icons.Default.Lock,
+
+                    contentDescription =
+                        null
+                )
+            },
+
+            trailingIcon = {
+
+                IconButton(
+
+                    onClick = {
+
+                        passwordVisible =
+                            !passwordVisible
+                    }
+                ) {
+
+                    Icon(
+
+                        imageVector =
+
+                            if (passwordVisible)
+                                Icons.Default.VisibilityOff
+                            else
+                                Icons.Default.Visibility,
+
+                        contentDescription =
+
+                            if (passwordVisible)
+                                "Hide password"
+                            else
+                                "Show password"
+                    )
+                }
+            },
+
+            colors =
+                OutlinedTextFieldDefaults.colors(
+
+                    focusedTextColor =
+                        Color.White,
+
+                    unfocusedTextColor =
+                        Color.White,
+
+                    focusedBorderColor =
+                        Color.White,
+
+                    unfocusedBorderColor =
+                        Color(0xFF555555),
+
+                    focusedLabelColor =
+                        Color.White,
+
+                    unfocusedLabelColor =
+                        Color(0xFF888888),
+
+                    cursorColor =
+                        Color.White,
+
+                    focusedLeadingIconColor =
+                        Color.White,
+
+                    unfocusedLeadingIconColor =
+                        Color(0xFF777777),
+
+                    focusedTrailingIconColor =
+                        Color.White,
+
+                    unfocusedTrailingIconColor =
+                        Color(0xFF777777)
+                )
+        )
+
+
+        Spacer(
+            modifier =
+                Modifier.height(10.dp)
+        )
+
+
+        // =====================================================================
+        // ERROR
+        // =====================================================================
+
+        if (
+            errorMessage.isNotEmpty()
+        ) {
+
+            Text(
+
+                text =
+                    errorMessage,
+
+                color =
+                    Color(0xFFBBBBBB),
+
+                fontSize =
+                    12.sp,
+
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            horizontal = 4.dp
+                        )
+            )
+        }
+
+
+        Spacer(
+            modifier =
+                Modifier.height(25.dp)
+        )
+
+
+        // =====================================================================
+        // LOGIN
+        // =====================================================================
+
+        Button(
+
+            onClick = {
+
+                val enteredUsername =
+                    username.trim()
+
+
+                if (
+                    enteredUsername.isEmpty()
+                ) {
+
+                    errorMessage =
+                        "Enter your username"
+
+                } else if (
+                    password.isEmpty()
+                ) {
+
+                    errorMessage =
+                        "Enter your password"
+
+                } else {
+
+                    val savedUsername =
+                        preferences.getString(
+                            "username",
+                            null
+                        )
+
+
+                    val savedPassword =
+                        preferences.getString(
+                            "password",
+                            null
+                        )
+
+
+                    // ---------------------------------------------------------
+                    // FIRST LOGIN
+                    // ---------------------------------------------------------
+
+                    if (
+                        savedUsername == null ||
+                        savedPassword == null
+                    ) {
+
+                        preferences
+                            .edit()
+                            .putString(
+                                "username",
+                                enteredUsername
+                            )
+                            .putString(
+                                "password",
+                                password
+                            )
+                            .putBoolean(
+                                "logged_in",
+                                true
+                            )
+                            .apply()
+
+
+                        onLoginSuccess()
+
+
+                        // ---------------------------------------------------------
+                        // EXISTING ACCOUNT
+                        // ---------------------------------------------------------
+
+                    } else if (
+
+                        enteredUsername ==
+                        savedUsername &&
+
+                        password ==
+                        savedPassword
+
+                    ) {
+
+                        preferences
+                            .edit()
+                            .putBoolean(
+                                "logged_in",
+                                true
+                            )
+                            .apply()
+
+
+                        onLoginSuccess()
+
+
+                    } else {
+
+                        errorMessage =
+                            "Incorrect username or password"
+                    }
+                }
+            },
+
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+
+            shape =
+                RoundedCornerShape(
+                    10.dp
+                ),
+
+            colors =
+                ButtonDefaults.buttonColors(
+
+                    containerColor =
+                        Color.White,
+
+                    contentColor =
+                        Color.Black
+                )
+        ) {
+
+            Text(
+
+                text =
+                    "LOGIN",
+
+                fontSize =
+                    14.sp,
+
+                fontWeight =
+                    FontWeight.Bold,
+
+                letterSpacing =
+                    2.sp
+            )
+        }
+
+
+        Spacer(
+            modifier =
+                Modifier.height(25.dp)
+        )
+
+
+        Text(
+
+            text =
+                "OFFLINE MUSIC PLAYER",
+
+            color =
+                Color(0xFF444444),
+
+            fontSize =
+                9.sp,
+
+            letterSpacing =
+                2.sp
+        )
     }
 }
 
@@ -507,14 +1726,8 @@ fun WalkmanScreen(
 
 
     // =========================================================================
-    // QUEUE STATE
+    // QUEUE
     // =========================================================================
-    //
-    // The actual queue will be maintained by MusicService.
-    // MainActivity observes it here.
-    //
-    // These calls will be implemented in MusicService.kt next.
-    //
 
     var queueSongs by remember {
 
@@ -564,10 +1777,6 @@ fun WalkmanScreen(
                 repeatMode =
                     service.getRepeatMode()
 
-
-                // -------------------------------------------------------------
-                // QUEUE
-                // -------------------------------------------------------------
 
                 try {
 
@@ -689,7 +1898,7 @@ fun WalkmanScreen(
 
 
     // =========================================================================
-    // REMOVE FROM QUEUE
+    // REMOVE QUEUE
     // =========================================================================
 
     fun removeFromQueue(
@@ -729,7 +1938,7 @@ fun WalkmanScreen(
 
 
     // =========================================================================
-    // SEARCH RESULTS
+    // SEARCH
     // =========================================================================
 
     val searchResults =
@@ -801,7 +2010,8 @@ fun WalkmanScreen(
 
             WalkmanHeader(
 
-                page = currentPage,
+                page =
+                    currentPage,
 
                 queueCount =
                     queueSongs.size,
@@ -824,13 +2034,15 @@ fun WalkmanScreen(
                         selectedArtist != null
                     ) {
 
-                        selectedArtist = null
+                        selectedArtist =
+                            null
 
                     } else if (
                         selectedAlbum != null
                     ) {
 
-                        selectedAlbum = null
+                        selectedAlbum =
+                            null
 
                     } else {
 
@@ -856,7 +2068,6 @@ fun WalkmanScreen(
 
             when (currentPage) {
 
-
                 // =================================================================
                 // HOME
                 // =================================================================
@@ -870,17 +2081,20 @@ fun WalkmanScreen(
                         selectedSong =
                             selectedSong,
 
-                        playing = playing,
+                        playing =
+                            playing,
 
                         currentPosition =
                             currentPosition,
 
-                        duration = duration,
+                        duration =
+                            duration,
 
                         favoriteSongs =
                             favoriteSongs,
 
-                        service = service,
+                        service =
+                            service,
 
                         shuffleEnabled =
                             shuffleEnabled,
@@ -940,9 +2154,11 @@ fun WalkmanScreen(
 
                     SongListPage(
 
-                        title = "SONGS",
+                        title =
+                            "SONGS",
 
-                        songs = songs,
+                        songs =
+                            songs,
 
                         selectedSong =
                             selectedSong,
@@ -950,7 +2166,8 @@ fun WalkmanScreen(
                         favoriteSongs =
                             favoriteSongs,
 
-                        service = service,
+                        service =
+                            service,
 
                         onSongClick = {
                             playSong(it)
@@ -986,7 +2203,8 @@ fun WalkmanScreen(
 
                         ArtistsPage(
 
-                            songs = songs,
+                            songs =
+                                songs,
 
                             onArtistClick = {
 
@@ -1002,7 +2220,8 @@ fun WalkmanScreen(
                             artist =
                                 selectedArtist!!,
 
-                            songs = songs,
+                            songs =
+                                songs,
 
                             selectedSong =
                                 selectedSong,
@@ -1048,7 +2267,8 @@ fun WalkmanScreen(
 
                         AlbumsPage(
 
-                            songs = songs,
+                            songs =
+                                songs,
 
                             onAlbumClick = {
 
@@ -1064,7 +2284,8 @@ fun WalkmanScreen(
                             album =
                                 selectedAlbum!!,
 
-                            songs = songs,
+                            songs =
+                                songs,
 
                             selectedSong =
                                 selectedSong,
@@ -1115,9 +2336,11 @@ fun WalkmanScreen(
 
                     SongListPage(
 
-                        title = "FAVORITES",
+                        title =
+                            "FAVORITES",
 
-                        songs = favoriteList,
+                        songs =
+                            favoriteList,
 
                         selectedSong =
                             selectedSong,
@@ -1125,7 +2348,8 @@ fun WalkmanScreen(
                         favoriteSongs =
                             favoriteSongs,
 
-                        service = service,
+                        service =
+                            service,
 
                         onSongClick = {
                             playSong(it)
@@ -1212,7 +2436,8 @@ fun WalkmanScreen(
 
                         onClear = {
 
-                            searchQuery = ""
+                            searchQuery =
+                                ""
                         },
 
                         onSongClick = {
@@ -1373,11 +2598,14 @@ fun WalkmanScreen(
 
                 onPageSelected = {
 
-                    selectedArtist = null
+                    selectedArtist =
+                        null
 
-                    selectedAlbum = null
+                    selectedAlbum =
+                        null
 
-                    currentPage = it
+                    currentPage =
+                        it
                 }
             )
         }
@@ -1417,7 +2645,8 @@ fun WalkmanHeader(
         ) {
 
             IconButton(
-                onClick = onBack
+                onClick =
+                    onBack
             ) {
 
                 Icon(
@@ -1438,7 +2667,8 @@ fun WalkmanHeader(
 
             Text(
 
-                text = "A10S",
+                text =
+                    "A10S",
 
                 color =
                     Color.White,
@@ -1453,7 +2683,8 @@ fun WalkmanHeader(
 
             Text(
 
-                text = "WALKMAN",
+                text =
+                    "WALKMAN",
 
                 color =
                     Color(0xFF888888),
@@ -1473,8 +2704,6 @@ fun WalkmanHeader(
         )
 
 
-        // SEARCH BUTTON
-
         IconButton(
             onClick =
                 onSearch
@@ -1492,8 +2721,6 @@ fun WalkmanHeader(
             )
         }
 
-
-        // QUEUE BUTTON
 
         Box {
 
@@ -1524,7 +2751,9 @@ fun WalkmanHeader(
                     modifier =
                         Modifier
                             .size(16.dp)
-                            .clip(CircleShape)
+                            .clip(
+                                CircleShape
+                            )
                             .background(
                                 Color.White
                             )
@@ -2729,10 +3958,7 @@ fun QueueSongRow(
                     song.title,
 
                 color =
-                    if (playing)
-                        Color.White
-                    else
-                        Color.White,
+                    Color.White,
 
                 fontSize =
                     15.sp,
@@ -2832,7 +4058,8 @@ fun SongListPage(
     ) {
 
         SectionTitle(
-            title = title
+            title =
+                title
         )
 
 
@@ -2855,7 +4082,8 @@ fun SongListPage(
 
                 items(
 
-                    items = songs,
+                    items =
+                        songs,
 
                     key = {
                         it.id
@@ -3065,6 +4293,7 @@ fun SongRow(
             IconButton(
 
                 onClick = {
+
                     showActions =
                         !showActions
                 }
@@ -3116,10 +4345,6 @@ fun SongRow(
         }
 
 
-        // =====================================================================
-        // QUEUE ACTIONS
-        // =====================================================================
-
         if (showActions) {
 
             Row(
@@ -3142,13 +4367,14 @@ fun SongRow(
                 Row(
 
                     modifier =
-                        Modifier.clickable {
+                        Modifier
+                            .clickable {
 
-                            onPlayNext()
+                                onPlayNext()
 
-                            showActions =
-                                false
-                        }
+                                showActions =
+                                    false
+                            }
                             .padding(
                                 8.dp
                             ),
@@ -3195,13 +4421,14 @@ fun SongRow(
                 Row(
 
                     modifier =
-                        Modifier.clickable {
+                        Modifier
+                            .clickable {
 
-                            onAddToQueue()
+                                onAddToQueue()
 
-                            showActions =
-                                false
-                        }
+                                showActions =
+                                    false
+                            }
                             .padding(
                                 8.dp
                             ),
@@ -3414,7 +4641,8 @@ fun ArtistsPage(
     ) {
 
         SectionTitle(
-            title = "ARTISTS"
+            title =
+                "ARTISTS"
         )
 
 
@@ -3436,7 +4664,8 @@ fun ArtistsPage(
             ) {
 
                 items(
-                    items = artists
+                    items =
+                        artists
                 ) { artist ->
 
                     ArtistRow(
@@ -3602,7 +4831,8 @@ fun AlbumsPage(
     ) {
 
         SectionTitle(
-            title = "ALBUMS"
+            title =
+                "ALBUMS"
         )
 
 
@@ -3624,7 +4854,8 @@ fun AlbumsPage(
             ) {
 
                 items(
-                    items = albums
+                    items =
+                        albums
                 ) { album ->
 
                     val albumSong =
