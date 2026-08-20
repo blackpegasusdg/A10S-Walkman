@@ -7,6 +7,7 @@ import android.content.Intent
 import androidx.compose.material.icons.filled.VisibilityOff
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import androidx.compose.foundation.layout.statusBarsPadding
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -2855,8 +2856,9 @@ fun HomePage(
 ) {
 
     Column(
-        modifier =
-            Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
     ) {
 
         PlayerSection(
