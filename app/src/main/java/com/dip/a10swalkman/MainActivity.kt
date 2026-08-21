@@ -11,24 +11,27 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import io.github.jan.supabase.auth.providers.builtin.Email
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 
 import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.auth.providers.builtin.Email
+
 import io.github.jan.supabase.createSupabaseClient
 
 import kotlinx.coroutines.launch
 
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.Email
 
 
 import androidx.activity.ComponentActivity
@@ -213,6 +216,7 @@ class MainActivity : ComponentActivity() {
     ) {
 
         super.onCreate(savedInstanceState)
+
 
         WindowCompat.setDecorFitsSystemWindows(
             window,
@@ -414,7 +418,7 @@ fun WalkmanApp(
         Surface(
 
             modifier =
-                Modifier.fillMaxSize(),
+                Modifier.fillMaxSize().statusBarsPadding(),
 
             color =
                 Color(0xFF080808)
@@ -546,33 +550,35 @@ fun OnlineLoginScreen(
     val scope =
         rememberCoroutineScope()
 
-
     var email by remember {
-
         mutableStateOf("")
     }
-
 
     var password by remember {
-
         mutableStateOf("")
     }
 
+    var confirmPassword by remember {
+        mutableStateOf("")
+    }
 
     var passwordVisible by remember {
-
         mutableStateOf(false)
     }
 
+    var confirmPasswordVisible by remember {
+        mutableStateOf(false)
+    }
+
+    var isSignUp by remember {
+        mutableStateOf(false)
+    }
 
     var loading by remember {
-
         mutableStateOf(false)
     }
 
-
-    var errorMessage by remember {
-
+    var authMessage by remember {
         mutableStateOf("")
     }
 
@@ -597,9 +603,9 @@ fun OnlineLoginScreen(
     ) {
 
 
-        // ====================================================================
-        // EXISTING WALKMAN STYLE
-        // ====================================================================
+        // ================================================================
+        // LOGO
+        // ================================================================
 
         Icon(
 
@@ -660,10 +666,17 @@ fun OnlineLoginScreen(
         )
 
 
+        // ================================================================
+        // TITLE
+        // ================================================================
+
         Text(
 
             text =
-                "LOGIN",
+                if (isSignUp)
+                    "CREATE ACCOUNT"
+                else
+                    "LOGIN",
 
             color =
                 Color.White,
@@ -682,9 +695,9 @@ fun OnlineLoginScreen(
         )
 
 
-        // ====================================================================
+        // ================================================================
         // EMAIL
-        // ====================================================================
+        // ================================================================
 
         OutlinedTextField(
 
@@ -694,8 +707,7 @@ fun OnlineLoginScreen(
             onValueChange = {
 
                 email = it
-
-                errorMessage = ""
+                authMessage = ""
             },
 
             modifier =
@@ -750,9 +762,9 @@ fun OnlineLoginScreen(
         )
 
 
-        // ====================================================================
+        // ================================================================
         // PASSWORD
-        // ====================================================================
+        // ================================================================
 
         OutlinedTextField(
 
@@ -762,8 +774,7 @@ fun OnlineLoginScreen(
             onValueChange = {
 
                 password = it
-
-                errorMessage = ""
+                authMessage = ""
             },
 
             modifier =
@@ -780,13 +791,17 @@ fun OnlineLoginScreen(
             },
 
             visualTransformation =
+
                 if (passwordVisible)
-
                     VisualTransformation.None
-
                 else
-
                     PasswordVisualTransformation(),
+
+            keyboardOptions =
+                KeyboardOptions(
+                    keyboardType =
+                        KeyboardType.Password
+                ),
 
             trailingIcon = {
 
@@ -797,7 +812,6 @@ fun OnlineLoginScreen(
                         passwordVisible =
                             !passwordVisible
                     }
-
                 ) {
 
                     Icon(
@@ -805,15 +819,15 @@ fun OnlineLoginScreen(
                         imageVector =
 
                             if (passwordVisible)
-
                                 Icons.Default.VisibilityOff
-
                             else
-
                                 Icons.Default.Visibility,
 
                         contentDescription =
-                            "Show password",
+                            if (passwordVisible)
+                                "Hide password"
+                            else
+                                "Show password",
 
                         tint =
                             Color.White
@@ -848,27 +862,142 @@ fun OnlineLoginScreen(
         )
 
 
+        // ================================================================
+        // CONFIRM PASSWORD
+        // ================================================================
+
+        if (isSignUp) {
+
+            Spacer(
+                modifier =
+                    Modifier.height(12.dp)
+            )
+
+
+            OutlinedTextField(
+
+                value =
+                    confirmPassword,
+
+                onValueChange = {
+
+                    confirmPassword = it
+                    authMessage = ""
+                },
+
+                modifier =
+                    Modifier.fillMaxWidth(),
+
+                singleLine =
+                    true,
+
+                label = {
+
+                    Text(
+                        "Confirm Password"
+                    )
+                },
+
+                visualTransformation =
+
+                    if (confirmPasswordVisible)
+                        VisualTransformation.None
+                    else
+                        PasswordVisualTransformation(),
+
+                keyboardOptions =
+                    KeyboardOptions(
+                        keyboardType =
+                            KeyboardType.Password
+                    ),
+
+                trailingIcon = {
+
+                    IconButton(
+
+                        onClick = {
+
+                            confirmPasswordVisible =
+                                !confirmPasswordVisible
+                        }
+                    ) {
+
+                        Icon(
+
+                            imageVector =
+
+                                if (confirmPasswordVisible)
+                                    Icons.Default.VisibilityOff
+                                else
+                                    Icons.Default.Visibility,
+
+                            contentDescription =
+                                if (confirmPasswordVisible)
+                                    "Hide password"
+                                else
+                                    "Show password",
+
+                            tint =
+                                Color.White
+                        )
+                    }
+                },
+
+                colors =
+                    OutlinedTextFieldDefaults.colors(
+
+                        focusedTextColor =
+                            Color.White,
+
+                        unfocusedTextColor =
+                            Color.White,
+
+                        focusedBorderColor =
+                            Color.White,
+
+                        unfocusedBorderColor =
+                            Color(0xFF555555),
+
+                        focusedLabelColor =
+                            Color.White,
+
+                        unfocusedLabelColor =
+                            Color(0xFF888888),
+
+                        cursorColor =
+                            Color.White
+                    )
+            )
+        }
+
+
         Spacer(
             modifier =
                 Modifier.height(15.dp)
         )
 
 
-        // ====================================================================
-        // ERROR
-        // ====================================================================
+        // ================================================================
+        // MESSAGE
+        // ================================================================
 
-        if (
-            errorMessage.isNotEmpty()
-        ) {
+        if (authMessage.isNotEmpty()) {
 
             Text(
 
                 text =
-                    errorMessage,
+                    authMessage,
 
                 color =
-                    Color(0xFFFF6666),
+                    if (
+                        authMessage.startsWith(
+                            "SUCCESS:",
+                            ignoreCase = true
+                        )
+                    )
+                        Color(0xFF66FF99)
+                    else
+                        Color(0xFFFF6666),
 
                 fontSize =
                     12.sp,
@@ -885,78 +1014,161 @@ fun OnlineLoginScreen(
         }
 
 
-        // ====================================================================
-        // LOGIN BUTTON
-        // ====================================================================
+        // ================================================================
+        // LOGIN / CREATE ACCOUNT
+        // ================================================================
 
         Button(
 
             onClick = {
 
+                authMessage = ""
+
+                val cleanEmail =
+                    email.trim()
+
+
+                // --------------------------------------------------------
+                // VALIDATION
+                // --------------------------------------------------------
+
+                if (cleanEmail.isEmpty()) {
+
+                    authMessage =
+                        "Please enter your email"
+
+                    return@Button
+                }
+
+
                 if (
-                    email.trim().isEmpty()
+                    !android.util.Patterns.EMAIL_ADDRESS
+                        .matcher(cleanEmail)
+                        .matches()
                 ) {
 
-                    errorMessage =
-                        "Enter your email"
+                    authMessage =
+                        "Please enter a valid email"
 
                     return@Button
                 }
 
 
-                if (
-                    password.isEmpty()
-                ) {
+                if (password.isEmpty()) {
 
-                    errorMessage =
-                        "Enter your password"
+                    authMessage =
+                        "Please enter your password"
 
                     return@Button
                 }
+
+
+                if (password.length < 6) {
+
+                    authMessage =
+                        "Password must be at least 6 characters"
+
+                    return@Button
+                }
+
+
+                if (isSignUp) {
+
+                    if (
+                        confirmPassword.isEmpty()
+                    ) {
+
+                        authMessage =
+                            "Please confirm your password"
+
+                        return@Button
+                    }
+
+
+                    if (
+                        password !=
+                        confirmPassword
+                    ) {
+
+                        authMessage =
+                            "Passwords do not match"
+
+                        return@Button
+                    }
+                }
+
+
+                loading = true
 
 
                 scope.launch {
 
-                    loading = true
-
-                    errorMessage = ""
-
-
                     try {
 
-                        // ----------------------------------------------------
-                        // ONLINE SUPABASE LOGIN
-                        // ----------------------------------------------------
+                        // =================================================
+                        // SIGN UP
+                        // =================================================
 
-                        supabase.auth.signInWith(
-                            Email
-                        ) {
+                        if (isSignUp) {
 
-                            this.email =
-                                email.trim()
+                            supabase.auth.signUpWith(
+                                Email
+                            ) {
 
-                            this.password =
-                                password
+                                this.email =
+                                    cleanEmail
+
+                                this.password =
+                                    password
+                            }
+
+
+                            email = ""
+                            password = ""
+                            confirmPassword = ""
+
+                            isSignUp = false
+
+                            authMessage =
+                                "SUCCESS: Account created. Check your email for verification, then login."
+
+                        } else {
+
+                            // =================================================
+                            // LOGIN
+                            // =================================================
+
+                            supabase.auth.signInWith(
+                                Email
+                            ) {
+
+                                this.email =
+                                    cleanEmail
+
+                                this.password =
+                                    password
+                            }
+
+
+                            // =================================================
+                            // SUCCESS
+                            // =================================================
+
+                            onLoginSuccess()
                         }
-
-
-                        loading = false
-
-
-                        // ----------------------------------------------------
-                        // LOGIN SUCCESS
-                        // ----------------------------------------------------
-
-                        onLoginSuccess()
 
                     } catch (e: Exception) {
 
-                        loading = false
-
-
-                        errorMessage =
+                        authMessage =
                             e.message
-                                ?: "Login failed"
+                                ?: if (isSignUp)
+                                    "Sign up failed"
+                                else
+                                    "Login failed"
+
+                    } finally {
+
+                        loading = false
                     }
                 }
             },
@@ -1004,10 +1216,19 @@ fun OnlineLoginScreen(
                 Text(
 
                     text =
-                        "LOGIN",
+                        if (isSignUp)
+                            "CREATE ACCOUNT"
+                        else
+                            "LOGIN",
+
+                    fontSize =
+                        14.sp,
 
                     fontWeight =
-                        FontWeight.Bold
+                        FontWeight.Bold,
+
+                    letterSpacing =
+                        2.sp
                 )
             }
         }
@@ -1019,20 +1240,102 @@ fun OnlineLoginScreen(
         )
 
 
+        // ================================================================
+        // SWITCH
+        // ================================================================
+
+        Row(
+
+            horizontalArrangement =
+                Arrangement.Center,
+
+            verticalAlignment =
+                Alignment.CenterVertically
+        ) {
+
+            Text(
+
+                text =
+                    if (isSignUp)
+                        "Already have an account?"
+                    else
+                        "Don't have an account?",
+
+                color =
+                    Color(0xFF777777),
+
+                fontSize =
+                    12.sp
+            )
+
+
+            TextButton(
+
+                onClick = {
+
+                    if (!loading) {
+
+                        isSignUp =
+                            !isSignUp
+
+                        email = ""
+                        password = ""
+                        confirmPassword = ""
+
+                        authMessage = ""
+                    }
+                },
+
+                enabled =
+                    !loading
+            ) {
+
+                Text(
+
+                    text =
+                        if (isSignUp)
+                            "LOGIN"
+                        else
+                            "SIGN UP",
+
+                    color =
+                        Color.White,
+
+                    fontSize =
+                        12.sp,
+
+                    fontWeight =
+                        FontWeight.Bold,
+
+                    letterSpacing =
+                        1.sp
+                )
+            }
+        }
+
+
+        Spacer(
+            modifier =
+                Modifier.height(10.dp)
+        )
+
+
         Text(
 
             text =
-                "Online authentication",
+                "ONLINE AUTHENTICATION",
 
             color =
-                Color(0xFF555555),
+                Color(0xFF444444),
 
             fontSize =
-                10.sp
+                9.sp,
+
+            letterSpacing =
+                2.sp
         )
     }
-}
-// ============================================================================
+}// ============================================================================
 // LOGIN SCREEN
 // ============================================================================
 
@@ -1041,40 +1344,41 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit
 ) {
 
-    val context =
-        LocalContext.current
+    val scope = rememberCoroutineScope()
 
-
-    val preferences =
-        remember {
-
-            context.getSharedPreferences(
-                "a10s_walkman",
-                Context.MODE_PRIVATE
-            )
-        }
-
-
-    var username by remember {
-
-        mutableStateOf("")
-    }
-
-
-    var password by remember {
-
-        mutableStateOf("")
-    }
-
-
-    var passwordVisible by remember {
-
+    var isSignUp by remember {
         mutableStateOf(false)
     }
 
+    var email by remember {
+        mutableStateOf("")
+    }
+
+    var password by remember {
+        mutableStateOf("")
+    }
+
+    var confirmPassword by remember {
+        mutableStateOf("")
+    }
+
+    var passwordVisible by remember {
+        mutableStateOf(false)
+    }
+
+    var confirmPasswordVisible by remember {
+        mutableStateOf(false)
+    }
+
+    var loading by remember {
+        mutableStateOf(false)
+    }
+
+    var message by remember {
+        mutableStateOf("")
+    }
 
     var errorMessage by remember {
-
         mutableStateOf("")
     }
 
@@ -1099,9 +1403,9 @@ fun LoginScreen(
     ) {
 
 
-        // =====================================================================
+        // ================================================================
         // LOGO
-        // =====================================================================
+        // ================================================================
 
         Box(
 
@@ -1175,24 +1479,57 @@ fun LoginScreen(
 
         Spacer(
             modifier =
-                Modifier.height(45.dp)
+                Modifier.height(35.dp)
         )
 
 
-        // =====================================================================
-        // USERNAME
-        // =====================================================================
+        // ================================================================
+        // TITLE
+        // ================================================================
+
+        Text(
+
+            text =
+                if (isSignUp)
+                    "CREATE ACCOUNT"
+                else
+                    "LOGIN",
+
+            color =
+                Color.White,
+
+            fontSize =
+                18.sp,
+
+            fontWeight =
+                FontWeight.Bold,
+
+            letterSpacing =
+                2.sp
+        )
+
+
+        Spacer(
+            modifier =
+                Modifier.height(25.dp)
+        )
+
+
+        // ================================================================
+        // EMAIL
+        // ================================================================
 
         OutlinedTextField(
 
             value =
-                username,
+                email,
 
             onValueChange = {
 
-                username = it
+                email = it
 
                 errorMessage = ""
+                message = ""
             },
 
             modifier =
@@ -1204,7 +1541,7 @@ fun LoginScreen(
             label = {
 
                 Text(
-                    text = "Username"
+                    text = "Email"
                 )
             },
 
@@ -1212,12 +1549,18 @@ fun LoginScreen(
 
                 Icon(
 
-                    Icons.Default.Person,
+                    Icons.Default.Email,
 
                     contentDescription =
                         null
                 )
             },
+
+            keyboardOptions =
+                KeyboardOptions(
+                    keyboardType =
+                        KeyboardType.Email
+                ),
 
             colors =
                 OutlinedTextFieldDefaults.colors(
@@ -1258,9 +1601,9 @@ fun LoginScreen(
         )
 
 
-        // =====================================================================
+        // ================================================================
         // PASSWORD
-        // =====================================================================
+        // ================================================================
 
         OutlinedTextField(
 
@@ -1272,6 +1615,7 @@ fun LoginScreen(
                 password = it
 
                 errorMessage = ""
+                message = ""
             },
 
             modifier =
@@ -1288,7 +1632,6 @@ fun LoginScreen(
             },
 
             visualTransformation =
-
                 if (passwordVisible)
                     VisualTransformation.None
                 else
@@ -1374,24 +1717,176 @@ fun LoginScreen(
         )
 
 
+        // ================================================================
+        // CONFIRM PASSWORD
+        // ================================================================
+
+        if (isSignUp) {
+
+            Spacer(
+                modifier =
+                    Modifier.height(14.dp)
+            )
+
+
+            OutlinedTextField(
+
+                value =
+                    confirmPassword,
+
+                onValueChange = {
+
+                    confirmPassword = it
+
+                    errorMessage = ""
+                    message = ""
+                },
+
+                modifier =
+                    Modifier.fillMaxWidth(),
+
+                singleLine =
+                    true,
+
+                label = {
+
+                    Text(
+                        text = "Confirm Password"
+                    )
+                },
+
+                visualTransformation =
+                    if (confirmPasswordVisible)
+                        VisualTransformation.None
+                    else
+                        PasswordVisualTransformation(),
+
+                leadingIcon = {
+
+                    Icon(
+
+                        Icons.Default.Lock,
+
+                        contentDescription =
+                            null
+                    )
+                },
+
+                trailingIcon = {
+
+                    IconButton(
+
+                        onClick = {
+
+                            confirmPasswordVisible =
+                                !confirmPasswordVisible
+                        }
+                    ) {
+
+                        Icon(
+
+                            imageVector =
+
+                                if (confirmPasswordVisible)
+                                    Icons.Default.VisibilityOff
+                                else
+                                    Icons.Default.Visibility,
+
+                            contentDescription =
+
+                                if (confirmPasswordVisible)
+                                    "Hide password"
+                                else
+                                    "Show password"
+                        )
+                    }
+                },
+
+                colors =
+                    OutlinedTextFieldDefaults.colors(
+
+                        focusedTextColor =
+                            Color.White,
+
+                        unfocusedTextColor =
+                            Color.White,
+
+                        focusedBorderColor =
+                            Color.White,
+
+                        unfocusedBorderColor =
+                            Color(0xFF555555),
+
+                        focusedLabelColor =
+                            Color.White,
+
+                        unfocusedLabelColor =
+                            Color(0xFF888888),
+
+                        cursorColor =
+                            Color.White,
+
+                        focusedLeadingIconColor =
+                            Color.White,
+
+                        unfocusedLeadingIconColor =
+                            Color(0xFF777777),
+
+                        focusedTrailingIconColor =
+                            Color.White,
+
+                        unfocusedTrailingIconColor =
+                            Color(0xFF777777)
+                    )
+            )
+        }
+
+
         Spacer(
             modifier =
-                Modifier.height(10.dp)
+                Modifier.height(15.dp)
         )
 
 
-        // =====================================================================
+        // ================================================================
         // ERROR
-        // =====================================================================
+        // ================================================================
 
-        if (
-            errorMessage.isNotEmpty()
-        ) {
+        if (errorMessage.isNotEmpty()) {
 
             Text(
 
                 text =
                     errorMessage,
+
+                color =
+                    Color(0xFFFF6666),
+
+                fontSize =
+                    12.sp,
+
+                modifier =
+                    Modifier.fillMaxWidth()
+            )
+
+
+            Spacer(
+                modifier =
+                    Modifier.height(8.dp)
+            )
+        }
+
+
+        // ================================================================
+        // MESSAGE
+        // ================================================================
+
+        if (message.isNotEmpty()) {
+
+            Text(
+
+                text =
+                    message,
 
                 color =
                     Color(0xFFBBBBBB),
@@ -1400,125 +1895,173 @@ fun LoginScreen(
                     12.sp,
 
                 modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            horizontal = 4.dp
-                        )
+                    Modifier.fillMaxWidth()
+            )
+
+
+            Spacer(
+                modifier =
+                    Modifier.height(8.dp)
             )
         }
 
 
         Spacer(
             modifier =
-                Modifier.height(25.dp)
+                Modifier.height(10.dp)
         )
 
 
-        // =====================================================================
-        // LOGIN
-        // =====================================================================
+        // ================================================================
+        // MAIN BUTTON
+        // ================================================================
 
         Button(
 
             onClick = {
 
-                val enteredUsername =
-                    username.trim()
+                errorMessage = ""
+                message = ""
 
 
-                if (
-                    enteredUsername.isEmpty()
-                ) {
+                val cleanEmail =
+                    email.trim()
+
+
+                if (cleanEmail.isEmpty()) {
 
                     errorMessage =
-                        "Enter your username"
+                        "Enter your email"
 
-                } else if (
-                    password.isEmpty()
-                ) {
+                    return@Button
+                }
+
+
+                if (!cleanEmail.contains("@")) {
+
+                    errorMessage =
+                        "Enter a valid email"
+
+                    return@Button
+                }
+
+
+                if (password.isEmpty()) {
 
                     errorMessage =
                         "Enter your password"
 
-                } else {
-
-                    val savedUsername =
-                        preferences.getString(
-                            "username",
-                            null
-                        )
+                    return@Button
+                }
 
 
-                    val savedPassword =
-                        preferences.getString(
-                            "password",
-                            null
-                        )
+                if (isSignUp) {
 
-
-                    // ---------------------------------------------------------
-                    // FIRST LOGIN
-                    // ---------------------------------------------------------
-
-                    if (
-                        savedUsername == null ||
-                        savedPassword == null
-                    ) {
-
-                        preferences
-                            .edit()
-                            .putString(
-                                "username",
-                                enteredUsername
-                            )
-                            .putString(
-                                "password",
-                                password
-                            )
-                            .putBoolean(
-                                "logged_in",
-                                true
-                            )
-                            .apply()
-
-
-                        onLoginSuccess()
-
-
-                        // ---------------------------------------------------------
-                        // EXISTING ACCOUNT
-                        // ---------------------------------------------------------
-
-                    } else if (
-
-                        enteredUsername ==
-                        savedUsername &&
-
-                        password ==
-                        savedPassword
-
-                    ) {
-
-                        preferences
-                            .edit()
-                            .putBoolean(
-                                "logged_in",
-                                true
-                            )
-                            .apply()
-
-
-                        onLoginSuccess()
-
-
-                    } else {
+                    if (password.length < 6) {
 
                         errorMessage =
-                            "Incorrect username or password"
+                            "Password must be at least 6 characters"
+
+                        return@Button
+                    }
+
+
+                    if (
+                        confirmPassword.isEmpty()
+                    ) {
+
+                        errorMessage =
+                            "Confirm your password"
+
+                        return@Button
+                    }
+
+
+                    if (
+                        password !=
+                        confirmPassword
+                    ) {
+
+                        errorMessage =
+                            "Passwords do not match"
+
+                        return@Button
+                    }
+                }
+
+
+                loading = true
+
+
+                scope.launch {
+
+                    try {
+
+                        if (isSignUp) {
+
+                            // =================================================
+                            // SUPABASE SIGN UP
+                            // =================================================
+
+                            supabase.auth.signUpWith(
+                                Email,
+                                redirectUrl = "com.dip.a10swalkman://auth/callback"
+                            ) {
+                                this.email = email
+                                this.password = password
+                            }
+
+                            message =
+                                "Account created. Check your email to verify your account."
+
+
+                            email = ""
+                            password = ""
+                            confirmPassword = ""
+
+                            // Return to login screen
+                            isSignUp = false
+
+                        } else {
+
+                            // =================================================
+                            // SUPABASE LOGIN
+                            // =================================================
+
+                            supabase.auth.signInWith(
+                                Email
+                            ) {
+
+                                this.email =
+                                    cleanEmail
+
+                                this.password =
+                                    password
+                            }
+
+
+                            // Supabase session now exists
+                            onLoginSuccess()
+                        }
+
+                    } catch (e: Exception) {
+
+                        errorMessage =
+                            e.message
+                                ?: if (isSignUp)
+                                    "Sign up failed"
+                                else
+                                    "Login failed"
+
+                    } finally {
+
+                        loading = false
                     }
                 }
             },
+
+            enabled =
+                !loading,
 
             modifier =
                 Modifier
@@ -1541,33 +2084,131 @@ fun LoginScreen(
                 )
         ) {
 
-            Text(
+            if (loading) {
 
-                text =
-                    "LOGIN",
+                CircularProgressIndicator(
 
-                fontSize =
-                    14.sp,
+                    modifier =
+                        Modifier.size(22.dp),
 
-                fontWeight =
-                    FontWeight.Bold,
+                    color =
+                        Color.Black,
 
-                letterSpacing =
-                    2.sp
-            )
+                    strokeWidth =
+                        2.dp
+                )
+
+            } else {
+
+                Text(
+
+                    text =
+                        if (isSignUp)
+                            "CREATE ACCOUNT"
+                        else
+                            "LOGIN",
+
+                    fontSize =
+                        14.sp,
+
+                    fontWeight =
+                        FontWeight.Bold,
+
+                    letterSpacing =
+                        2.sp
+                )
+            }
         }
 
 
         Spacer(
             modifier =
-                Modifier.height(25.dp)
+                Modifier.height(18.dp)
+        )
+
+
+        // ================================================================
+        // LOGIN / SIGN UP SWITCH
+        // ================================================================
+
+        Row(
+
+            horizontalArrangement =
+                Arrangement.Center,
+
+            verticalAlignment =
+                Alignment.CenterVertically
+        ) {
+
+            Text(
+
+                text =
+                    if (isSignUp)
+                        "Already have an account?"
+                    else
+                        "Don't have an account?",
+
+                color =
+                    Color(0xFF777777),
+
+                fontSize =
+                    12.sp
+            )
+
+
+            TextButton(
+
+                onClick = {
+
+                    isSignUp =
+                        !isSignUp
+
+                    email = ""
+                    password = ""
+                    confirmPassword = ""
+
+                    errorMessage = ""
+                    message = ""
+                },
+
+                enabled =
+                    !loading
+            ) {
+
+                Text(
+
+                    text =
+                        if (isSignUp)
+                            "LOGIN"
+                        else
+                            "SIGN UP",
+
+                    color =
+                        Color.White,
+
+                    fontSize =
+                        12.sp,
+
+                    fontWeight =
+                        FontWeight.Bold,
+
+                    letterSpacing =
+                        1.sp
+                )
+            }
+        }
+
+
+        Spacer(
+            modifier =
+                Modifier.height(10.dp)
         )
 
 
         Text(
 
             text =
-                "OFFLINE MUSIC PLAYER",
+                "ONLINE AUTHENTICATION",
 
             color =
                 Color(0xFF444444),
@@ -1580,7 +2221,6 @@ fun LoginScreen(
         )
     }
 }
-
 
 // ============================================================================
 // NAVIGATION
