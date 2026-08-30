@@ -33,30 +33,31 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
-import com.dip.a10swalkman.ui.cyberpunk.CyberAlbumsPage
-import com.dip.a10swalkman.ui.cyberpunk.CyberArtistsPage
-import com.dip.a10swalkman.ui.cyberpunk.CyberAuthScreen
-import com.dip.a10swalkman.ui.cyberpunk.CyberBottomBar
-import com.dip.a10swalkman.ui.cyberpunk.CyberColors
-import com.dip.a10swalkman.ui.cyberpunk.CyberHeader
-import com.dip.a10swalkman.ui.cyberpunk.CyberHomeScreen
-import com.dip.a10swalkman.ui.cyberpunk.CyberMiniPlayer
-import com.dip.a10swalkman.ui.cyberpunk.CyberNowPlayingScreen
-import com.dip.a10swalkman.ui.cyberpunk.CyberQueuePage
-import com.dip.a10swalkman.ui.cyberpunk.CyberSearchPage
-import com.dip.a10swalkman.ui.cyberpunk.CyberSongListPage
+import com.dip.a10swalkman.ui.swiss.SwissAlbumsPage
+import com.dip.a10swalkman.ui.swiss.SwissArtistsPage
+import com.dip.a10swalkman.ui.swiss.SwissAuthScreen
+import com.dip.a10swalkman.ui.swiss.SwissBottomBar
+import com.dip.a10swalkman.ui.swiss.SwissColors
+import com.dip.a10swalkman.ui.swiss.SwissHeader
+import com.dip.a10swalkman.ui.swiss.SwissHomeScreen
+import com.dip.a10swalkman.ui.swiss.SwissMiniPlayer
+import com.dip.a10swalkman.ui.swiss.SwissNowPlayingScreen
+import com.dip.a10swalkman.ui.swiss.SwissQueuePage
+import com.dip.a10swalkman.ui.swiss.SwissSearchPage
+import com.dip.a10swalkman.ui.swiss.SwissSongListPage
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.createSupabaseClient
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 // ============================================================================
 // SUPABASE CLIENT
@@ -201,7 +202,7 @@ fun WalkmanApp(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding(),
-            color = CyberColors.Void
+            color = SwissColors.Black
         ) {
             var loggedIn by remember { mutableStateOf(false) }
             var checkingLogin by remember { mutableStateOf(true) }
@@ -220,28 +221,33 @@ fun WalkmanApp(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(CyberColors.Void),
+                        .background(SwissColors.Black),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    CircularProgressIndicator(color = CyberColors.NeonCyan)
+                    CircularProgressIndicator(
+                        color = SwissColors.White,
+                        strokeWidth = 2.dp
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "CONNECTING TO NEURAL DECK...",
-                        color = CyberColors.NeonCyanDim,
+                        text = "LOADING ARCHIVE...",
+                        color = SwissColors.GrayLight,
                         fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
                     )
                 }
             } else if (!loggedIn) {
-                CyberAuthScreen(
+                SwissAuthScreen(
                     onLoginSuccess = { loggedIn = true }
                 )
             } else {
                 WalkmanScreen(
                     songs = songs,
                     service = service,
-                    requestPermission = requestPermission
+                    requestPermission = requestPermission,
+                    onLogout = { loggedIn = false }
                 )
             }
         }
@@ -256,9 +262,11 @@ fun WalkmanApp(
 fun WalkmanScreen(
     songs: List<MusicFile>,
     service: MusicService?,
-    requestPermission: () -> Unit
+    requestPermission: () -> Unit,
+    onLogout: () -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var currentPage by remember { mutableStateOf(WalkmanPage.HOME) }
     var selectedArtist by remember { mutableStateOf<String?>(null) }
     var selectedAlbum by remember { mutableStateOf<String?>(null) }
@@ -358,25 +366,43 @@ fun WalkmanScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(CyberColors.Void)
+            .background(SwissColors.Black)
     ) {
-        // TOP HUD BAR (hidden when in full screen Now Playing)
+        // TOP SWISS HEADER BAR
         if (currentPage != WalkmanPage.NOW_PLAYING) {
-            CyberHeader(
-                title = when (currentPage) {
-                    WalkmanPage.HOME -> "A10S // DECK"
-                    WalkmanPage.SONGS -> "TRACKS // REPOSITORY"
-                    WalkmanPage.ARTISTS -> "ARTISTS // HUB"
-                    WalkmanPage.ALBUMS -> "ALBUMS // ARCHIVE"
-                    WalkmanPage.FAVORITES -> "FAVORITES // CORE"
-                    WalkmanPage.QUEUE -> "QUEUE // BUFFER"
-                    WalkmanPage.SEARCH -> "RADAR // SCANNER"
-                    WalkmanPage.NOW_PLAYING -> "PLAYING // DECK"
+            SwissHeader(
+                indexNumber = when (currentPage) {
+                    WalkmanPage.HOME -> "01"
+                    WalkmanPage.SONGS -> "02"
+                    WalkmanPage.ARTISTS -> "03"
+                    WalkmanPage.ALBUMS -> "04"
+                    WalkmanPage.FAVORITES -> "05"
+                    WalkmanPage.QUEUE -> "06"
+                    WalkmanPage.SEARCH -> "07"
+                    WalkmanPage.NOW_PLAYING -> "08"
                 },
-                subtitle = "DECK STATUS: ONLINE // ${songs.size} AUDIO UNITS",
+                title = when (currentPage) {
+                    WalkmanPage.HOME -> "WALKMAN"
+                    WalkmanPage.SONGS -> "TRACKS"
+                    WalkmanPage.ARTISTS -> "ARTISTS"
+                    WalkmanPage.ALBUMS -> "ALBUMS"
+                    WalkmanPage.FAVORITES -> "FAVORITES"
+                    WalkmanPage.QUEUE -> "QUEUE"
+                    WalkmanPage.SEARCH -> "RADAR"
+                    WalkmanPage.NOW_PLAYING -> "PLAYING"
+                },
                 queueCount = queueSongs.size,
                 onSearchClick = { currentPage = WalkmanPage.SEARCH },
                 onQueueClick = { currentPage = WalkmanPage.QUEUE },
+                onLogoutClick = {
+                    scope.launch {
+                        try {
+                            supabase.auth.signOut()
+                        } catch (_: Exception) {
+                        }
+                        onLogout()
+                    }
+                },
                 onBackClick = if (selectedArtist != null || selectedAlbum != null || currentPage != WalkmanPage.HOME) {
                     {
                         if (selectedArtist != null) {
@@ -391,7 +417,7 @@ fun WalkmanScreen(
             )
         }
 
-        // MAIN CONTENT AREA
+        // MAIN SWISS CONTENT AREA
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -399,7 +425,7 @@ fun WalkmanScreen(
         ) {
             when (currentPage) {
                 WalkmanPage.HOME -> {
-                    CyberHomeScreen(
+                    SwissHomeScreen(
                         songs = songs,
                         selectedSong = selectedSong,
                         playing = playing,
@@ -424,7 +450,7 @@ fun WalkmanScreen(
                 }
 
                 WalkmanPage.SONGS -> {
-                    CyberSongListPage(
+                    SwissSongListPage(
                         title = "ALL TRACKS",
                         songs = songs,
                         selectedSong = selectedSong,
@@ -440,7 +466,7 @@ fun WalkmanScreen(
                 WalkmanPage.ARTISTS -> {
                     if (selectedArtist != null) {
                         val artistSongs = songs.filter { it.artist == selectedArtist }
-                        CyberSongListPage(
+                        SwissSongListPage(
                             title = "ARTIST // $selectedArtist",
                             songs = artistSongs,
                             selectedSong = selectedSong,
@@ -453,7 +479,7 @@ fun WalkmanScreen(
                             onBack = { selectedArtist = null }
                         )
                     } else {
-                        CyberArtistsPage(
+                        SwissArtistsPage(
                             songs = songs,
                             onArtistClick = { selectedArtist = it }
                         )
@@ -463,7 +489,7 @@ fun WalkmanScreen(
                 WalkmanPage.ALBUMS -> {
                     if (selectedAlbum != null) {
                         val albumSongs = songs.filter { it.album == selectedAlbum }
-                        CyberSongListPage(
+                        SwissSongListPage(
                             title = "ALBUM // $selectedAlbum",
                             songs = albumSongs,
                             selectedSong = selectedSong,
@@ -476,7 +502,7 @@ fun WalkmanScreen(
                             onBack = { selectedAlbum = null }
                         )
                     } else {
-                        CyberAlbumsPage(
+                        SwissAlbumsPage(
                             songs = songs,
                             onAlbumClick = { selectedAlbum = it }
                         )
@@ -485,8 +511,8 @@ fun WalkmanScreen(
 
                 WalkmanPage.FAVORITES -> {
                     val favList = songs.filter { favoriteSongs.contains(it.id) }
-                    CyberSongListPage(
-                        title = "FAVORITE TRANSMISSIONS",
+                    SwissSongListPage(
+                        title = "FAVORITE TRACKS",
                         songs = favList,
                         selectedSong = selectedSong,
                         playing = playing,
@@ -499,7 +525,7 @@ fun WalkmanScreen(
                 }
 
                 WalkmanPage.QUEUE -> {
-                    CyberQueuePage(
+                    SwissQueuePage(
                         queueSongs = queueSongs,
                         selectedSong = selectedSong,
                         playing = playing,
@@ -511,7 +537,7 @@ fun WalkmanScreen(
                 }
 
                 WalkmanPage.SEARCH -> {
-                    CyberSearchPage(
+                    SwissSearchPage(
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
                         searchResults = searchResults,
@@ -527,7 +553,7 @@ fun WalkmanScreen(
                 }
 
                 WalkmanPage.NOW_PLAYING -> {
-                    CyberNowPlayingScreen(
+                    SwissNowPlayingScreen(
                         song = selectedSong,
                         playing = playing,
                         currentPosition = currentPosition,
@@ -554,7 +580,7 @@ fun WalkmanScreen(
                 enter = fadeIn(),
                 exit = fadeOut()
             ) {
-                CyberMiniPlayer(
+                SwissMiniPlayer(
                     song = selectedSong,
                     playing = playing,
                     currentPosition = currentPosition,
@@ -565,7 +591,7 @@ fun WalkmanScreen(
                 )
             }
 
-            CyberBottomBar(
+            SwissBottomBar(
                 currentPage = currentPage,
                 onPageSelected = {
                     selectedArtist = null
