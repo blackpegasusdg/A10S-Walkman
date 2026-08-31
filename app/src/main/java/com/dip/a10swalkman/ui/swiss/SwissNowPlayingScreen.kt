@@ -85,132 +85,147 @@ fun SwissNowPlayingScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp, vertical = 16.dp)
+                .padding(horizontal = 22.dp, vertical = 14.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // TOP BAR
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                SwissIconButton(
-                    icon = Icons.AutoMirrored.Filled.ArrowBack,
-                    onClick = onBack,
-                    size = 36.dp,
-                    tint = SwissColors.White
-                )
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "NOW PLAYING",
-                        color = SwissColors.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 2.sp
-                    )
-                    if (playing) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Box(
-                            modifier = Modifier
-                                .size(5.dp)
-                                .clip(CircleShape)
-                                .background(SwissColors.Accent)
-                        )
-                    }
-                }
-
-                Box {
+            // 1. TOP BAR
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     SwissIconButton(
-                        icon = Icons.AutoMirrored.Filled.QueueMusic,
-                        onClick = onQueueClick,
+                        icon = Icons.AutoMirrored.Filled.ArrowBack,
+                        onClick = onBack,
                         size = 36.dp,
-                        tint = if (queueCount > 0) SwissColors.White else SwissColors.GrayMid
+                        tint = SwissColors.White
                     )
-                    if (queueCount > 0) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(SwissColors.Accent)
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "NOW PLAYING",
+                            color = SwissColors.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 2.sp
                         )
+                        if (playing) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(5.dp)
+                                    .clip(CircleShape)
+                                    .background(SwissColors.Accent)
+                            )
+                        }
+                    }
+
+                    Box {
+                        SwissIconButton(
+                            icon = Icons.AutoMirrored.Filled.QueueMusic,
+                            onClick = onQueueClick,
+                            size = 36.dp,
+                            tint = if (queueCount > 0) SwissColors.White else SwissColors.GrayMid
+                        )
+                        if (queueCount > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(SwissColors.Accent)
+                            )
+                        }
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 2. SKIPER71 IMAGE REVEAL ARTWORK CENTERPIECE
+            Skiper71ImageReveal(
+                song = song,
+                size = 270.dp
+            )
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // CENTERPIECE SQUARE ALBUM ART
-            Box(
-                modifier = Modifier
-                    .size(260.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(SwissColors.SurfaceElevated)
-                    .border(BorderStroke(1.dp, SwissColors.HairlineLight), RoundedCornerShape(2.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                SwissAlbumArt(
-                    song = song,
-                    size = 258.dp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // TRACK METADATA
+            // 3. EDITORIAL TRACK METADATA
             Column(
                 horizontalAlignment = Alignment.Start,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = song.title,
-                    color = SwissColors.White,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Black,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    letterSpacing = (-0.5).sp
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = song.title,
+                            color = SwissColors.White,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Black,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            letterSpacing = (-0.5).sp
+                        )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
 
-                Text(
-                    text = song.artist,
-                    color = SwissColors.GrayLight,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                        Text(
+                            text = song.artist,
+                            color = SwissColors.GrayLight,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
 
-                Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
 
-                Text(
-                    text = song.album,
-                    color = SwissColors.GrayMid,
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                        Text(
+                            text = song.album,
+                            color = SwissColors.GrayMid,
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { onFavorite(song) },
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = "Favorite",
+                            tint = if (isFavorite) SwissColors.Accent else SwissColors.GrayMid,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            // INTERACTIVE AUDIO WAVEFORM SCRUBBER
-            SwissScrubber(
+            // 4. INTERACTIVE DYNAMIC AUDIO WAVEFORM SCRUBBER
+            SwissWaveformScrubber(
                 currentPosition = currentPosition,
                 duration = duration,
                 songId = song.id,
                 isPlaying = playing,
+                barCount = 52,
+                height = 54.dp,
                 onSeek = { service?.seekTo(it) }
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(22.dp))
 
-            // PLAYBACK CONTROLS
+            // 5. MASTER PLAYBACK CONTROLS
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -221,21 +236,21 @@ fun SwissNowPlayingScreen(
                     icon = Icons.Default.Shuffle,
                     onClick = onShuffle,
                     size = 40.dp,
-                    tint = if (shuffleEnabled) SwissColors.White else SwissColors.GrayMid
+                    tint = if (shuffleEnabled) SwissColors.Accent else SwissColors.GrayMid
                 )
 
                 // Skip Previous
                 SwissIconButton(
                     icon = Icons.Default.SkipPrevious,
                     onClick = { service?.playPrevious() },
-                    size = 46.dp,
+                    size = 48.dp,
                     tint = SwissColors.White
                 )
 
                 // Master Solid Play/Pause Circle
                 Box(
                     modifier = Modifier
-                        .size(64.dp)
+                        .size(68.dp)
                         .clip(CircleShape)
                         .background(SwissColors.White)
                         .clickable(
@@ -250,7 +265,7 @@ fun SwissNowPlayingScreen(
                         imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (playing) "Pause" else "Play",
                         tint = SwissColors.Black,
-                        modifier = Modifier.size(30.dp)
+                        modifier = Modifier.size(32.dp)
                     )
                 }
 
@@ -258,7 +273,7 @@ fun SwissNowPlayingScreen(
                 SwissIconButton(
                     icon = Icons.Default.SkipNext,
                     onClick = { service?.playNext() },
-                    size = 46.dp,
+                    size = 48.dp,
                     tint = SwissColors.White
                 )
 
@@ -271,11 +286,15 @@ fun SwissNowPlayingScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(22.dp))
 
-            // BOTTOM TOOLBAR
+            // 6. TECHNICAL METADATA DECK
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(SwissColors.Surface, RoundedCornerShape(2.dp))
+                    .border(BorderStroke(1.dp, SwissColors.Hairline), RoundedCornerShape(2.dp))
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -288,15 +307,21 @@ fun SwissNowPlayingScreen(
                     hasAccentDot = repeatMode > 0
                 )
 
-                IconButton(
-                    onClick = { onFavorite(song) },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = "Favorite",
-                        tint = if (isFavorite) SwissColors.Accent else SwissColors.GrayMid,
-                        modifier = Modifier.size(22.dp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SwissAudioIndicator(
+                        isPlaying = playing,
+                        color = if (playing) SwissColors.Accent else SwissColors.GrayMid,
+                        modifier = Modifier
+                            .width(14.dp)
+                            .height(10.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (playing) "PLAYING" else "STANDBY",
+                        color = SwissColors.GrayLight,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp
                     )
                 }
 
@@ -308,3 +333,4 @@ fun SwissNowPlayingScreen(
         }
     }
 }
+

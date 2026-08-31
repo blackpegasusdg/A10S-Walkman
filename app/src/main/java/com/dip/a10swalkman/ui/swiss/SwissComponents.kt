@@ -1,5 +1,7 @@
 package com.dip.a10swalkman.ui.swiss
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -23,10 +25,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -53,23 +57,35 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dip.a10swalkman.AlbumArt
 import com.dip.a10swalkman.MusicFile
+import kotlin.math.PI
+import kotlin.math.sin
 import kotlin.random.Random
 
 // ============================================================================
@@ -106,7 +122,7 @@ fun SwissCard(
 }
 
 // ============================================================================
-// SWISS AUDIO INDICATOR (MINIMAL 3-BAR PULSE)
+// SWISS AUDIO EQUALIZER INDICATOR (MINIMAL 4-BAR HARMONIC PULSE)
 // ============================================================================
 
 @Composable
@@ -115,59 +131,69 @@ fun SwissAudioIndicator(
     modifier: Modifier = Modifier,
     color: Color = SwissColors.White
 ) {
-    val transition = rememberInfiniteTransition(label = "swiss_audio")
-    val bar1 by transition.animateFloat(
-        initialValue = 0.3f,
+    val transition = rememberInfiniteTransition(label = "swiss_audio_bars")
+    val b1 by transition.animateFloat(
+        initialValue = 0.25f,
         targetValue = 1.0f,
         animationSpec = infiniteRepeatable(
-            animation = tween(400, easing = FastOutSlowInEasing),
+            animation = tween(380, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "bar1"
+        label = "b1"
     )
-    val bar2 by transition.animateFloat(
-        initialValue = 0.8f,
-        targetValue = 0.2f,
+    val b2 by transition.animateFloat(
+        initialValue = 0.90f,
+        targetValue = 0.20f,
         animationSpec = infiniteRepeatable(
-            animation = tween(550, easing = LinearEasing),
+            animation = tween(520, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "bar2"
+        label = "b2"
     )
-    val bar3 by transition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 0.9f,
+    val b3 by transition.animateFloat(
+        initialValue = 0.40f,
+        targetValue = 0.95f,
         animationSpec = infiniteRepeatable(
-            animation = tween(350, easing = FastOutSlowInEasing),
+            animation = tween(340, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "bar3"
+        label = "b3"
+    )
+    val b4 by transition.animateFloat(
+        initialValue = 0.70f,
+        targetValue = 0.30f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(460, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "b4"
     )
 
     Box(
-        modifier = modifier
-            .drawBehind {
-                val maxHeight = size.height
-                val barW = 2.5.dp.toPx()
-                val gap = 2.dp.toPx()
+        modifier = modifier.drawBehind {
+            val maxHeight = size.height
+            val totalBars = 4
+            val barW = 2.dp.toPx()
+            val gap = 2.dp.toPx()
 
-                val heights = if (isPlaying) {
-                    listOf(bar1 * maxHeight, bar2 * maxHeight, bar3 * maxHeight)
-                } else {
-                    listOf(3.dp.toPx(), 3.dp.toPx(), 3.dp.toPx())
-                }
-
-                heights.forEachIndexed { i, h ->
-                    val x = i * (barW + gap)
-                    val y = maxHeight - h.coerceAtLeast(2.dp.toPx())
-                    drawRoundRect(
-                        color = color,
-                        topLeft = Offset(x, y),
-                        size = Size(barW, h.coerceAtLeast(2.dp.toPx())),
-                        cornerRadius = CornerRadius(1f, 1f)
-                    )
-                }
+            val heights = if (isPlaying) {
+                listOf(b1 * maxHeight, b2 * maxHeight, b3 * maxHeight, b4 * maxHeight)
+            } else {
+                listOf(2.5.dp.toPx(), 2.5.dp.toPx(), 2.5.dp.toPx(), 2.5.dp.toPx())
             }
+
+            heights.forEachIndexed { i, h ->
+                val x = i * (barW + gap)
+                val clampedH = h.coerceAtLeast(2.dp.toPx())
+                val y = maxHeight - clampedH
+                drawRoundRect(
+                    color = color,
+                    topLeft = Offset(x, y),
+                    size = Size(barW, clampedH),
+                    cornerRadius = CornerRadius(0.8.dp.toPx(), 0.8.dp.toPx())
+                )
+            }
+        }
     )
 }
 
@@ -200,7 +226,7 @@ fun SwissButton(
                 indication = ripple(color = fg),
                 onClick = onClick
             )
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .padding(horizontal = 18.dp, vertical = 11.dp),
         contentAlignment = Alignment.Center
     ) {
         Row(
@@ -212,14 +238,14 @@ fun SwissButton(
                     imageVector = icon,
                     contentDescription = null,
                     tint = if (enabled) fg else SwissColors.GrayMid,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(15.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(7.dp))
             }
             Text(
                 text = text.uppercase(),
                 color = if (enabled) fg else SwissColors.GrayMid,
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 1.5.sp
             )
@@ -260,7 +286,7 @@ fun SwissIconButton(
             imageVector = icon,
             contentDescription = contentDescription,
             tint = tint,
-            modifier = Modifier.size((size.value * 0.55f).dp)
+            modifier = Modifier.size((size.value * 0.52f).dp)
         )
     }
 }
@@ -279,7 +305,7 @@ fun SwissBadge(
         modifier = modifier
             .border(BorderStroke(1.dp, SwissColors.Hairline), RoundedCornerShape(2.dp))
             .background(SwissColors.Surface)
-            .padding(horizontal = 6.dp, vertical = 2.dp),
+            .padding(horizontal = 7.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (hasAccentDot) {
@@ -289,7 +315,7 @@ fun SwissBadge(
                     .clip(CircleShape)
                     .background(SwissColors.Accent)
             )
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(5.dp))
         }
         Text(
             text = text.uppercase(),
@@ -311,10 +337,11 @@ fun SwissWaveformScrubber(
     duration: Int,
     onSeek: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    seed: Long = 42L,
+    songId: Long = 42L,
+    seed: Long = songId,
     isPlaying: Boolean = false,
-    barCount: Int = 46,
-    height: Dp = 44.dp
+    barCount: Int = 48,
+    height: Dp = 50.dp
 ) {
     val actualProgress = if (duration > 0) {
         (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
@@ -326,36 +353,37 @@ fun SwissWaveformScrubber(
     val displayProgress = if (isDragging) dragProgress else actualProgress
     val displayPosition = (displayProgress * duration).toInt()
 
-    // Deterministic waveform profile for the track
+    // Deterministic realistic multi-harmonic sound envelope
     val rawWaveform = remember(seed, barCount) {
         val random = Random(seed xor 0x5DEECE66DL)
         val arr = FloatArray(barCount)
         for (i in 0 until barCount) {
-            val normalizedPos = i.toFloat() / (barCount - 1).coerceAtLeast(1)
-            // Multi-frequency harmonic envelope + natural audio dynamic variation
-            val envelope = 0.35f +
-                    0.45f * kotlin.math.sin(normalizedPos * Math.PI.toFloat()) +
-                    0.20f * kotlin.math.sin(normalizedPos * 3 * Math.PI.toFloat()).coerceAtLeast(0f)
-            val noise = 0.4f + 0.6f * random.nextFloat()
+            val norm = i.toFloat() / (barCount - 1).coerceAtLeast(1)
+            // Multi-frequency harmonic envelope + dynamic musical peaks
+            val envelope = 0.30f +
+                    0.50f * sin(norm * PI.toFloat()) +
+                    0.20f * sin(norm * 3 * PI.toFloat()).coerceAtLeast(0f) +
+                    0.15f * sin(norm * 7 * PI.toFloat()).coerceAtLeast(0f)
+            val noise = 0.35f + 0.65f * random.nextFloat()
             arr[i] = (envelope * noise).coerceIn(0.12f, 1.0f)
         }
         arr
     }
 
-    // Micro-motion breathing when playing
-    val transition = rememberInfiniteTransition(label = "waveform_pulse")
-    val livePulse by transition.animateFloat(
-        initialValue = 0.92f,
-        targetValue = 1.08f,
+    // Dynamic live frequency reactive bouncing when audio is playing
+    val transition = rememberInfiniteTransition(label = "waveform_pulse_anim")
+    val pulsePhase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2 * PI).toFloat(),
         animationSpec = infiniteRepeatable(
-            animation = tween(400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
+            animation = tween(1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
         ),
-        label = "livePulse"
+        label = "pulsePhase"
     )
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // Waveform Canvas with Tap & Drag Seeking
+        // Waveform Visualizer Canvas with Seek Dragging & Tooltip
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -402,18 +430,19 @@ fun SwissWaveformScrubber(
                         val barFraction = i.toFloat() / (totalBars - 1).coerceAtLeast(1)
                         val isPlayed = barFraction <= displayProgress
 
-                        // Base bar height with subtle active pulsation
-                        val baseAmplitude = rawWaveform[i]
-                        val dynamicFactor = if (isPlaying && isPlayed) {
-                            val phase = (i % 3)
-                            when (phase) {
-                                0 -> livePulse
-                                1 -> (2f - livePulse)
-                                else -> 1f
+                        // Base bar height with live frequency bouncing near the playhead
+                        val baseAmp = rawWaveform[i]
+                        val liveBouncyFactor = if (isPlaying) {
+                            val distToPlayhead = kotlin.math.abs(barFraction - displayProgress)
+                            if (distToPlayhead < 0.35f) {
+                                val proximity = 1f - (distToPlayhead / 0.35f)
+                                1f + 0.28f * proximity * sin(pulsePhase + i * 0.8f)
+                            } else {
+                                1f + 0.08f * sin(pulsePhase + i * 0.4f)
                             }
                         } else 1f
 
-                        val barHeight = (h * 0.85f * baseAmplitude * dynamicFactor).coerceIn(4.dp.toPx(), h)
+                        val barHeight = (h * 0.82f * baseAmp * liveBouncyFactor).coerceIn(4.dp.toPx(), h)
                         val x = i * (barWidth + gap)
                         val y = centerY - (barHeight / 2f)
 
@@ -426,59 +455,94 @@ fun SwissWaveformScrubber(
                             color = barColor,
                             topLeft = Offset(x, y),
                             size = Size(barWidth, barHeight),
-                            cornerRadius = CornerRadius(1.5.dp.toPx(), 1.5.dp.toPx())
+                            cornerRadius = CornerRadius(1.2.dp.toPx(), 1.2.dp.toPx())
                         )
                     }
 
-                    // Playhead cursor indicator
+                    // Playhead Line Indicator
                     val playheadX = (displayProgress * w).coerceIn(0f, w)
+
+                    // Vertical played line
                     drawLine(
                         color = if (isDragging) SwissColors.Accent else SwissColors.White,
                         start = Offset(playheadX, 0f),
                         end = Offset(playheadX, h),
-                        strokeWidth = if (isDragging) 2.dp.toPx() else 1.dp.toPx()
+                        strokeWidth = if (isDragging) 2.dp.toPx() else 1.2.dp.toPx()
                     )
 
-                    // Small indicator top dot when dragging
-                    if (isDragging) {
-                        drawCircle(
-                            color = SwissColors.Accent,
-                            radius = 3.5.dp.toPx(),
-                            center = Offset(playheadX, 0f)
-                        )
-                    }
+                    // Swiss Red marker dot at top of playhead
+                    drawCircle(
+                        color = SwissColors.Accent,
+                        radius = if (isDragging) 4.dp.toPx() else 2.5.dp.toPx(),
+                        center = Offset(playheadX, 3.dp.toPx())
+                    )
                 }
-        )
+        ) {
+            // Drag Scrub Tooltip Floating Badge
+            if (isDragging) {
+                val density = LocalDensity.current
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .offset {
+                            IntOffset(
+                                x = (dragProgress * 300).toInt().coerceIn(0, 200),
+                                y = -28
+                            )
+                        }
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(SwissColors.Dark)
+                        .border(BorderStroke(1.dp, SwissColors.Accent), RoundedCornerShape(2.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "SCRUB // ${formatSwissTime(displayPosition)}",
+                        color = SwissColors.Accent,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp
+                    )
+                }
+            }
+        }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Timecode Readout
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = formatSwissTime(displayPosition),
-                color = if (isDragging) SwissColors.Accent else SwissColors.White,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 0.5.sp
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isPlaying) {
+                    Box(
+                        modifier = Modifier
+                            .size(5.dp)
+                            .clip(CircleShape)
+                            .background(SwissColors.Accent)
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
+                }
+                Text(
+                    text = formatSwissTime(displayPosition),
+                    color = if (isDragging) SwissColors.Accent else SwissColors.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 0.5.sp
+                )
+            }
 
             Text(
-                text = formatSwissTime(duration),
+                text = " ${formatSwissTime(duration)}",
                 color = SwissColors.GrayMid,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
                 letterSpacing = 0.5.sp
             )
         }
     }
 }
-
-// ============================================================================
-// SWISS SCRUBBER (ALIAS)
-// ============================================================================
 
 @Composable
 fun SwissScrubber(
@@ -500,7 +564,149 @@ fun SwissScrubber(
 }
 
 // ============================================================================
-// SWISS ALBUM ART
+// SKIPER71 IMAGE REVEAL ANIMATION (CLIP-PATH POLYGON & BRIGHTNESS BLOOM)
+// ============================================================================
+
+/**
+ * Implements a Skiper71-inspired image reveal:
+ * - Dynamic angled clip-path polygon curtain wipe from left-to-right
+ * - Exposure and brightness ramp from dark tone into full crisp vibrance
+ * - Smooth scale settling (1.06f -> 1.0f)
+ * - Authentic Swiss editorial metadata badge overlay
+ */
+@Composable
+fun Skiper71ImageReveal(
+    song: MusicFile?,
+    modifier: Modifier = Modifier,
+    size: Dp = 260.dp
+) {
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val targetSizePx = remember(size, density) {
+        with(density) { (size * 2).roundToPx().coerceAtLeast(800) }
+    }
+
+    var bitmap by remember(song?.id) {
+        mutableStateOf(if (song != null) AlbumArt.getCached(song.id, targetSizePx) else null)
+    }
+
+    LaunchedEffect(song?.id, targetSizePx) {
+        if (song != null && (bitmap == null || (bitmap?.width ?: 0) < targetSizePx) && !AlbumArt.isKnownMissing(song.id)) {
+            val loaded = AlbumArt.loadArtworkAsync(context, song, targetSizePx)
+            if (loaded != null) {
+                bitmap = loaded
+            }
+        }
+    }
+
+    // Skiper71 Reveal Progress Animation (0f -> 1f)
+    val revealProgress = remember(song?.id) { Animatable(0f) }
+
+    LaunchedEffect(song?.id) {
+        revealProgress.snapTo(0f)
+        revealProgress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(
+                durationMillis = 650,
+                easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
+            )
+        )
+    }
+
+    val p = revealProgress.value
+    val scale = 1.05f - (0.05f * p)
+
+    val shape = RoundedCornerShape(2.dp)
+
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(shape)
+            .background(SwissColors.SurfaceElevated)
+            .border(BorderStroke(1.dp, SwissColors.HairlineLight), shape),
+        contentAlignment = Alignment.Center
+    ) {
+        val currentBitmap = bitmap
+        if (currentBitmap != null) {
+            // Angled Polygon Clip Path Mask for Skiper71 Curtain Effect
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    }
+                    .drawWithCache {
+                        val path = Path().apply {
+                            val w = this@drawWithCache.size.width
+                            val h = this@drawWithCache.size.height
+                            val revealX = w * p
+                            val slopeOffset = w * 0.22f * (1f - p)
+
+                            moveTo(0f, 0f)
+                            lineTo((revealX + slopeOffset).coerceAtMost(w), 0f)
+                            lineTo(revealX.coerceAtMost(w), h)
+                            lineTo(0f, h)
+                            close()
+                        }
+                        onDrawWithContent {
+                            clipPath(path) {
+                                this@onDrawWithContent.drawContent()
+                            }
+                        }
+                    }
+            ) {
+                Image(
+                    bitmap = currentBitmap.asImageBitmap(),
+                    contentDescription = song?.title ?: "Album Artwork",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    filterQuality = FilterQuality.High
+                )
+
+                // Brightness & Exposure Wipe Overlay during animation only
+                if (p < 0.99f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        SwissColors.Black.copy(alpha = (1f - p) * 0.5f)
+                                    )
+                                )
+                            )
+                    )
+                }
+            }
+        } else {
+            // Fallback Minimalist Record Placeholder
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MusicNote,
+                    contentDescription = null,
+                    tint = SwissColors.GrayMid,
+                    modifier = Modifier.size((size.value * 0.35f).dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "SWISS AUDIO DECK",
+                    color = SwissColors.GrayDark,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+            }
+        }
+    }
+}
+
+// ============================================================================
+// SWISS ALBUM ART (WITH EMBEDDED SKIPER71 REVEAL)
 // ============================================================================
 
 @Composable
@@ -513,18 +719,27 @@ fun SwissAlbumArt(
     val context = LocalContext.current
     val density = LocalDensity.current
     val targetSizePx = remember(size, density) {
-        with(density) { size.roundToPx() }
+        with(density) { (size * 2).roundToPx().coerceAtLeast(240) }
     }
 
     var bitmap by remember(song?.id) {
-        mutableStateOf(if (song != null) AlbumArt.getCached(song.id) else null)
+        mutableStateOf(if (song != null) AlbumArt.getCached(song.id, targetSizePx) else null)
     }
 
     LaunchedEffect(song?.id, targetSizePx) {
-        if (song != null && bitmap == null && !AlbumArt.isKnownMissing(song.id)) {
+        if (song != null && (bitmap == null || (bitmap?.width ?: 0) < targetSizePx) && !AlbumArt.isKnownMissing(song.id)) {
             val loaded = AlbumArt.loadArtworkAsync(context, song, targetSizePx)
-            bitmap = loaded
+            if (loaded != null) {
+                bitmap = loaded
+            }
         }
+    }
+
+    // Micro-reveal for small thumbnails
+    val revealProgress = remember(song?.id) { Animatable(0.2f) }
+    LaunchedEffect(song?.id) {
+        revealProgress.snapTo(0.2f)
+        revealProgress.animateTo(1f, animationSpec = tween(350, easing = FastOutSlowInEasing))
     }
 
     Box(
@@ -540,8 +755,13 @@ fun SwissAlbumArt(
             Image(
                 bitmap = currentBitmap.asImageBitmap(),
                 contentDescription = song?.title ?: "Album Art",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        alpha = revealProgress.value
+                    },
+                contentScale = ContentScale.Crop,
+                filterQuality = FilterQuality.High
             )
         } else {
             Icon(
@@ -555,12 +775,70 @@ fun SwissAlbumArt(
 }
 
 // ============================================================================
+// SWISS KINETIC TICKER MARQUEE (ANIMMASTER STYLE)
+// ============================================================================
+
+@Composable
+fun SwissKineticMarquee(
+    song: MusicFile?,
+    isPlaying: Boolean,
+    modifier: Modifier = Modifier
+) {
+    if (song == null) return
+
+    val text = "NOW PLAYING // ${song.title.uppercase()} — ${song.artist.uppercase()}  •  SWISS AUDIO ARCHIVE  •  44.1 kHz 24-BIT FLAC  •  "
+
+    val transition = rememberInfiniteTransition(label = "marquee_anim")
+    val offsetProgress by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = -1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(if (isPlaying) 14000 else 28000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "marqueeOffset"
+    )
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(SwissColors.Dark)
+            .border(BorderStroke(1.dp, SwissColors.Hairline), RoundedCornerShape(2.dp))
+            .padding(vertical = 5.dp, horizontal = 8.dp)
+            .clip(RoundedCornerShape(2.dp))
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(4.dp)
+                    .clip(CircleShape)
+                    .background(if (isPlaying) SwissColors.Accent else SwissColors.GrayMid)
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Text(
+                text = text + text,
+                color = SwissColors.GrayLight,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.2.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+// ============================================================================
 // SWISS HEADER
 // ============================================================================
 
 @Composable
 fun SwissHeader(
-    indexNumber: String = "01",
     title: String = "WALKMAN",
     subtitle: String? = null,
     queueCount: Int = 0,
@@ -592,21 +870,13 @@ fun SwissHeader(
                     Spacer(modifier = Modifier.width(8.dp))
                 }
 
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        text = "$indexNumber / ",
-                        color = SwissColors.Accent,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = title.uppercase(),
-                        color = SwissColors.White,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 1.5.sp
-                    )
-                }
+                Text(
+                    text = title.uppercase(),
+                    color = SwissColors.White,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.5.sp
+                )
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -666,7 +936,6 @@ fun SwissHeader(
 
 @Composable
 fun SwissSubPageHeader(
-    indexNumber: String = "INDEX",
     title: String,
     itemCount: Int? = null,
     onBack: () -> Unit
@@ -691,31 +960,23 @@ fun SwissSubPageHeader(
 
             Spacer(modifier = Modifier.width(10.dp))
 
-            Column {
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        text = "$indexNumber / ",
-                        color = SwissColors.Accent,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = title.uppercase(),
-                        color = SwissColors.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 1.sp
-                    )
-                }
-                if (itemCount != null) {
-                    Text(
-                        text = "$itemCount ENTRIES",
-                        color = SwissColors.GrayMid,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
-                }
+            Text(
+                text = title.uppercase(),
+                color = SwissColors.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 1.sp
+            )
+
+            if (itemCount != null) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "$itemCount ENTRIES",
+                    color = SwissColors.GrayMid,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
             }
         }
 
@@ -866,3 +1127,4 @@ fun formatSwissTime(milliseconds: Int): String {
     val seconds = totalSeconds % 60
     return String.format("%02d:%02d", minutes, seconds)
 }
+

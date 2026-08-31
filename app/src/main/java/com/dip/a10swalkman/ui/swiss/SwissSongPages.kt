@@ -250,7 +250,6 @@ fun SwissSongListPage(
     ) {
         if (onBack != null) {
             SwissSubPageHeader(
-                indexNumber = "INDEX",
                 title = title,
                 itemCount = songs.size,
                 onBack = onBack
@@ -401,9 +400,9 @@ fun SwissAlbumsPage(
                 columns = GridCells.Fixed(2),
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(12.dp)
+                    .padding(10.dp)
             ) {
-                items(albums) { (album, artist, albumSongs) ->
+                items(albums, key = { it.first }) { (album, artist, albumSongs) ->
                     val firstSong = albumSongs.firstOrNull()
                     SwissCard(
                         modifier = Modifier
@@ -415,9 +414,10 @@ fun SwissAlbumsPage(
                             horizontalAlignment = Alignment.Start,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            SwissAlbumArt(
+                            // Skiper71 Image Reveal on Album Card
+                            Skiper71ImageReveal(
                                 song = firstSong,
-                                size = 120.dp
+                                size = 138.dp
                             )
 
                             Spacer(modifier = Modifier.height(12.dp))
@@ -439,9 +439,12 @@ fun SwissAlbumsPage(
                                 overflow = TextOverflow.Ellipsis
                             )
 
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
 
-                            SwissBadge(text = "${albumSongs.size} TRACKS")
+                            SwissBadge(
+                                text = "${albumSongs.size} TRACKS",
+                                hasAccentDot = true
+                            )
                         }
                     }
                 }
@@ -470,7 +473,6 @@ fun SwissQueuePage(
             .background(SwissColors.Black)
     ) {
         SwissSubPageHeader(
-            indexNumber = "QUEUE",
             title = "PLAYBACK QUEUE",
             itemCount = queueSongs.size,
             onBack = onBack
@@ -598,7 +600,6 @@ fun SwissSearchPage(
             .background(SwissColors.Black)
     ) {
         SwissSubPageHeader(
-            indexNumber = "RADAR",
             title = "SEARCH ARCHIVE",
             itemCount = searchResults.size,
             onBack = onBack

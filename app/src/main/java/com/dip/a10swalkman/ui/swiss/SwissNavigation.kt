@@ -68,7 +68,7 @@ fun SwissMiniPlayer(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 4.dp)
+            .padding(horizontal = 12.dp, vertical = 3.dp)
             .clip(RoundedCornerShape(2.dp))
             .background(SwissColors.SurfaceElevated)
             .border(BorderStroke(1.dp, SwissColors.HairlineLight), RoundedCornerShape(2.dp))
@@ -78,25 +78,25 @@ fun SwissMiniPlayer(
                 onClick = onClick
             )
     ) {
-        // Hairline Top Progress Line
+        // Hairline Top Progress Line with Swiss Red active fill
         LinearProgressIndicator(
             progress = { progress },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(2.dp),
-            color = SwissColors.White,
+            color = SwissColors.Accent,
             trackColor = SwissColors.Hairline
         )
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             SwissAlbumArt(
                 song = song,
-                size = 38.dp
+                size = 40.dp
             )
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -124,7 +124,7 @@ fun SwissMiniPlayer(
                     isPlaying = true,
                     color = SwissColors.Accent,
                     modifier = Modifier
-                        .width(12.dp)
+                        .width(14.dp)
                         .height(10.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -138,7 +138,7 @@ fun SwissMiniPlayer(
                     imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (playing) "Pause" else "Play",
                     tint = SwissColors.White,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
 

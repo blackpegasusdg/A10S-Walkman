@@ -17,7 +17,7 @@ object AlbumArt {
 
     // 1. High Performance In-Memory LRU Cache
     private val maxMemory = (Runtime.getRuntime().maxMemory() / 1024).toInt()
-    private val cacheSize = (maxMemory / 8).coerceAtLeast(1024 * 16) // ~16-32MB cache
+    private val cacheSize = (maxMemory / 6).coerceAtLeast(1024 * 32) // ~32-64MB cache
 
     private val memoryCache = object : LruCache<Long, Bitmap>(cacheSize) {
         override fun sizeOf(key: Long, bitmap: Bitmap): Int {
@@ -28,8 +28,14 @@ object AlbumArt {
     // Set to avoid repeating disk lookups for songs confirmed to have no artwork
     private val missingArtIds = Collections.synchronizedSet(HashSet<Long>())
 
-    fun getCached(songId: Long): Bitmap? {
-        return memoryCache.get(songId)
+    fun getCached(songId: Long, minSizePx: Int = 0): Bitmap? {
+        val bitmap = memoryCache.get(songId)
+        if (bitmap != null) {
+            if (minSizePx <= 0 || (bitmap.width >= minSizePx && bitmap.height >= minSizePx)) {
+                return bitmap
+            }
+        }
+        return null
     }
 
     fun isKnownMissing(songId: Long): Boolean {
@@ -44,28 +50,32 @@ object AlbumArt {
     }
 
     /**
-     * High-speed Asynchronous Artwork Loader with Downsampling
+     * High-Definition Asynchronous Artwork Loader with Crystal-Clear 32-bit ARGB_8888 decoding
      */
     suspend fun loadArtworkAsync(
         context: Context,
         song: MusicFile,
-        targetSizePx: Int = 256
+        targetSizePx: Int = 800
     ): Bitmap? = withContext(Dispatchers.IO) {
-        // Fast path: memory cache hit
+        val reqSize = targetSizePx.coerceAtLeast(600)
+
+        // Fast path: memory cache hit if resolution is sufficient
         val cached = memoryCache.get(song.id)
-        if (cached != null) return@withContext cached
+        if (cached != null && (cached.width >= reqSize || cached.width >= 600)) {
+            return@withContext cached
+        }
 
         if (missingArtIds.contains(song.id)) return@withContext null
 
         var bitmap: Bitmap? = null
 
-        // Method 1: Android 10+ Hardware Accelerated ContentResolver Thumbnail
+        // Method 1: Android 10+ Hardware Accelerated High-Res ContentResolver Thumbnail
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && song.uri.isNotBlank()) {
             try {
                 val uri = Uri.parse(song.uri)
                 bitmap = context.contentResolver.loadThumbnail(
                     uri,
-                    Size(targetSizePx, targetSizePx),
+                    Size(reqSize, reqSize),
                     null
                 )
             } catch (_: Exception) {
@@ -73,7 +83,7 @@ object AlbumArt {
             }
         }
 
-        // Method 2: MediaStore Album Art URI
+        // Method 2: MediaStore Album Art URI with True Color ARGB_8888
         if (bitmap == null && song.albumId > 0) {
             try {
                 val sArtworkUri = Uri.parse("content://media/external/audio/albumart")
@@ -84,12 +94,12 @@ object AlbumArt {
                     }
                     BitmapFactory.decodeStream(stream, null, options)
 
-                    val sampleSize = calculateInSampleSize(options, targetSizePx, targetSizePx)
+                    val sampleSize = calculateInSampleSize(options, reqSize, reqSize)
 
                     context.contentResolver.openInputStream(albumArtUri)?.use { stream2 ->
                         val decodeOptions = BitmapFactory.Options().apply {
                             inSampleSize = sampleSize
-                            inPreferredConfig = Bitmap.Config.RGB_565 // 50% less RAM
+                            inPreferredConfig = Bitmap.Config.ARGB_8888 // 32-bit vivid crisp color
                         }
                         bitmap = BitmapFactory.decodeStream(stream2, null, decodeOptions)
                     }
@@ -99,7 +109,7 @@ object AlbumArt {
             }
         }
 
-        // Method 3: MediaMetadataRetriever with Downsampled Decoding
+        // Method 3: MediaMetadataRetriever with Full-Color Decoding
         if (bitmap == null && (song.path.isNotBlank() || song.uri.isNotBlank())) {
             val retriever = MediaMetadataRetriever()
             try {
@@ -111,17 +121,16 @@ object AlbumArt {
 
                 val artworkBytes = retriever.embeddedPicture
                 if (artworkBytes != null && artworkBytes.isNotEmpty()) {
-                    // First decode bounds only
                     val boundsOptions = BitmapFactory.Options().apply {
                         inJustDecodeBounds = true
                     }
                     BitmapFactory.decodeByteArray(artworkBytes, 0, artworkBytes.size, boundsOptions)
 
-                    val sampleSize = calculateInSampleSize(boundsOptions, targetSizePx, targetSizePx)
+                    val sampleSize = calculateInSampleSize(boundsOptions, reqSize, reqSize)
 
                     val decodeOptions = BitmapFactory.Options().apply {
                         inSampleSize = sampleSize
-                        inPreferredConfig = Bitmap.Config.RGB_565 // Efficient memory profile
+                        inPreferredConfig = Bitmap.Config.ARGB_8888 // Pristine true color
                     }
                     bitmap = BitmapFactory.decodeByteArray(artworkBytes, 0, artworkBytes.size, decodeOptions)
                 }

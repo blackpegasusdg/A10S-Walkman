@@ -18,11 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Album
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
@@ -37,7 +33,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -68,13 +63,16 @@ fun SwissHomeScreen(
     onRequestPermission: () -> Unit
 ) {
     val activeSong = selectedSong ?: songs.firstOrNull()
+    val previewSongs = remember(songs) { songs.take(15) }
+    val artistsCount = remember(songs) { songs.map { it.artist }.distinct().size }
+    val albumsCount = remember(songs) { songs.map { it.album }.distinct().size }
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(SwissColors.Black)
     ) {
-        // 1. HERO NOW PLAYING CARD
+        // 1. HERO NOW PLAYING DECK
         item {
             Column(
                 modifier = Modifier
@@ -86,24 +84,16 @@ fun SwissHomeScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "01 / ",
-                            color = SwissColors.Accent,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "CURRENT RECORD",
-                            color = SwissColors.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Black,
-                            letterSpacing = 1.sp
-                        )
-                    }
+                    Text(
+                        text = "CURRENT RECORD",
+                        color = SwissColors.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp
+                    )
 
                     SwissBadge(
-                        text = if (playing) "ACTIVE" else "PAUSED",
+                        text = if (playing) "ACTIVE" else "STANDBY",
                         hasAccentDot = playing
                     )
                 }
@@ -120,9 +110,10 @@ fun SwissHomeScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                SwissAlbumArt(
+                                // Skiper71 Image Reveal on active song
+                                Skiper71ImageReveal(
                                     song = activeSong,
-                                    size = 64.dp
+                                    size = 68.dp
                                 )
 
                                 Spacer(modifier = Modifier.width(16.dp))
@@ -162,18 +153,20 @@ fun SwissHomeScreen(
 
                             Spacer(modifier = Modifier.height(14.dp))
 
-                            // Waveform Scrubber
-                            SwissScrubber(
+                            // Interactive Audio Waveform Scrubber
+                            SwissWaveformScrubber(
                                 currentPosition = currentPosition,
                                 duration = duration,
                                 songId = activeSong.id,
                                 isPlaying = playing,
+                                barCount = 42,
+                                height = 44.dp,
                                 onSeek = { service?.seekTo(it) }
                             )
 
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(14.dp))
 
-                            // Playback Row
+                            // Tactile Playback Controls Row
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -183,23 +176,26 @@ fun SwissHomeScreen(
                                     icon = Icons.Default.Shuffle,
                                     onClick = onShuffle,
                                     size = 36.dp,
-                                    tint = if (shuffleEnabled) SwissColors.White else SwissColors.GrayMid
+                                    tint = if (shuffleEnabled) SwissColors.Accent else SwissColors.GrayMid
                                 )
 
                                 SwissIconButton(
                                     icon = Icons.Default.SkipPrevious,
                                     onClick = { service?.playPrevious() },
-                                    size = 38.dp,
+                                    size = 40.dp,
                                     tint = SwissColors.White
                                 )
 
-                                // Play/Pause Circle
+                                // Solid Play/Pause Circle
                                 Box(
                                     modifier = Modifier
-                                        .size(44.dp)
+                                        .size(46.dp)
                                         .clip(CircleShape)
                                         .background(SwissColors.White)
-                                        .clickable {
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = ripple(color = SwissColors.Black)
+                                        ) {
                                             if (selectedSong == null && songs.isNotEmpty()) {
                                                 onSongClick(songs.first())
                                             } else {
@@ -212,14 +208,14 @@ fun SwissHomeScreen(
                                         imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
                                         contentDescription = "Toggle",
                                         tint = SwissColors.Black,
-                                        modifier = Modifier.size(22.dp)
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 }
 
                                 SwissIconButton(
                                     icon = Icons.Default.SkipNext,
                                     onClick = { service?.playNext() },
-                                    size = 38.dp,
+                                    size = 40.dp,
                                     tint = SwissColors.White
                                 )
 
@@ -266,28 +262,20 @@ fun SwissHomeScreen(
             }
         }
 
-        // 2. SECTORS GRID
+        // 2. LIBRARY SECTORS GRID
         item {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 6.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "02 / ",
-                        color = SwissColors.Accent,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "LIBRARY SECTORS",
-                        color = SwissColors.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 1.sp
-                    )
-                }
+                Text(
+                    text = "LIBRARY SECTORS",
+                    color = SwissColors.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp
+                )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -296,7 +284,6 @@ fun SwissHomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     SwissNavTile(
-                        index = "01",
                         title = "TRACKS",
                         subtitle = "${songs.size} ENTRIES",
                         modifier = Modifier.weight(1f),
@@ -304,7 +291,6 @@ fun SwissHomeScreen(
                     )
 
                     SwissNavTile(
-                        index = "02",
                         title = "FAVORITES",
                         subtitle = "${favoriteSongs.size} ENTRIES",
                         modifier = Modifier.weight(1f),
@@ -318,11 +304,7 @@ fun SwissHomeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    val artistsCount = remember(songs) { songs.map { it.artist }.distinct().size }
-                    val albumsCount = remember(songs) { songs.map { it.album }.distinct().size }
-
                     SwissNavTile(
-                        index = "03",
                         title = "ARTISTS",
                         subtitle = "$artistsCount ENTRIES",
                         modifier = Modifier.weight(1f),
@@ -330,7 +312,6 @@ fun SwissHomeScreen(
                     )
 
                     SwissNavTile(
-                        index = "04",
                         title = "ALBUMS",
                         subtitle = "$albumsCount ENTRIES",
                         modifier = Modifier.weight(1f),
@@ -352,21 +333,13 @@ fun SwissHomeScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "03 / ",
-                            color = SwissColors.Accent,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "RECENT ENTRIES",
-                            color = SwissColors.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Black,
-                            letterSpacing = 1.sp
-                        )
-                    }
+                    Text(
+                        text = "RECENT ENTRIES",
+                        color = SwissColors.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp
+                    )
 
                     Text(
                         text = "VIEW ALL →",
@@ -379,7 +352,6 @@ fun SwissHomeScreen(
             }
         }
 
-        val previewSongs = songs.take(15)
         itemsIndexed(previewSongs, key = { _, s -> s.id }) { index, song ->
             SwissSongRow(
                 song = song,
@@ -402,7 +374,6 @@ fun SwissHomeScreen(
 
 @Composable
 private fun SwissNavTile(
-    index: String,
     title: String,
     subtitle: String,
     modifier: Modifier = Modifier,
@@ -417,15 +388,6 @@ private fun SwissNavTile(
             horizontalAlignment = Alignment.Start
         ) {
             Text(
-                text = "$index /",
-                color = SwissColors.Accent,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
                 text = title,
                 color = SwissColors.White,
                 fontSize = 13.sp,
@@ -433,7 +395,7 @@ private fun SwissNavTile(
                 letterSpacing = 1.sp
             )
 
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(3.dp))
 
             Text(
                 text = subtitle,
@@ -444,3 +406,4 @@ private fun SwissNavTile(
         }
     }
 }
+

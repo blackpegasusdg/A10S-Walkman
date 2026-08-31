@@ -283,26 +283,33 @@ fun WalkmanScreen(
     var repeatMode by remember { mutableStateOf(service?.getRepeatMode() ?: 0) }
     var queueSongs by remember { mutableStateOf<List<MusicFile>>(emptyList()) }
 
-    // Real-time Service State Polling
+    // Real-time Service State Polling with intelligent change detection
     LaunchedEffect(service) {
         while (true) {
             if (service != null) {
-                playing = service.isPlaying()
-                currentPosition = service.getCurrentPosition()
-                duration = service.getDuration()
+                val isPlay = service.isPlaying()
+                if (playing != isPlay) playing = isPlay
+
+                if (isPlay) {
+                    val pos = service.getCurrentPosition()
+                    if (currentPosition != pos) currentPosition = pos
+                }
+
+                val dur = service.getDuration()
+                if (duration != dur) duration = dur
+
                 val current = service.getCurrentSong()
-                if (current != null) {
+                if (selectedSong?.id != current?.id) {
                     selectedSong = current
                 }
-                shuffleEnabled = service.isShuffleEnabled()
-                repeatMode = service.getRepeatMode()
-                try {
-                    queueSongs = service.getQueue()
-                } catch (_: Exception) {
-                    queueSongs = emptyList()
-                }
+
+                val shuf = service.isShuffleEnabled()
+                if (shuffleEnabled != shuf) shuffleEnabled = shuf
+
+                val rep = service.getRepeatMode()
+                if (repeatMode != rep) repeatMode = rep
             }
-            delay(250)
+            delay(if (playing) 350L else 1000L)
         }
     }
 
@@ -371,16 +378,6 @@ fun WalkmanScreen(
         // TOP SWISS HEADER BAR
         if (currentPage != WalkmanPage.NOW_PLAYING) {
             SwissHeader(
-                indexNumber = when (currentPage) {
-                    WalkmanPage.HOME -> "01"
-                    WalkmanPage.SONGS -> "02"
-                    WalkmanPage.ARTISTS -> "03"
-                    WalkmanPage.ALBUMS -> "04"
-                    WalkmanPage.FAVORITES -> "05"
-                    WalkmanPage.QUEUE -> "06"
-                    WalkmanPage.SEARCH -> "07"
-                    WalkmanPage.NOW_PLAYING -> "08"
-                },
                 title = when (currentPage) {
                     WalkmanPage.HOME -> "WALKMAN"
                     WalkmanPage.SONGS -> "TRACKS"
